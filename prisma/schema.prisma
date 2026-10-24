@@ -45,15 +45,18 @@ model Product {
 }
 
 model ProductVariant {
-  id         String      @id @default(cuid())
-  productId  String
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  label      String
-  unit       Unit
-  price      Int
-  stock      Int         @default(0)
-  sku        String      @unique
-  orderItems OrderItem[]
+  id            String      @id @default(cuid())
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label         String
+  unit          Unit
+  price         Int
+  compareAtPrice Int?      // Sale pricing: original price before discount (in kobo)
+  stock         Int         @default(0)
+  minOrderQty   Int         @default(1) // Minimum order quantity for this variant
+  sku           String      @unique
+  orderItems    OrderItem[]
+  priceTiers    PriceTier[]
 }
 
 enum Unit {
@@ -109,4 +112,12 @@ model Setting {
   id    String @id @default(cuid())
   key   String @unique
   value String
+}
+
+model PriceTier {
+  id        String  @id @default(cuid())
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  minQty    Int     // Minimum quantity to qualify for this tier
+  price     Int     // Tier price in kobo
 }

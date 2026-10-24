@@ -33,8 +33,9 @@ export default function CheckoutPage() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
 
-  // Calculated values
-  const deliveryFee = 150000 // ₦1500 in kobo
+  // Calculated values: Lagos (₦1,500) vs other states (₦3,500)
+  const isLagos = state.trim().toLowerCase() === 'lagos'
+  const deliveryFee = state ? (isLagos ? 150000 : 350000) : 150000
   const cartSubtotal = subtotal()
   const total = cartSubtotal + deliveryFee
 

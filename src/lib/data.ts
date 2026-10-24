@@ -13,8 +13,17 @@ export interface VariantItem {
   label: string
   unit: 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE'
   price: number // in kobo
+  compareAtPrice?: number | null // original price before discount (in kobo)
   stock: number
+  minOrderQty?: number // minimum order quantity
   sku: string
+  priceTiers?: PriceTierItem[]
+}
+
+export interface PriceTierItem {
+  id: string
+  minQty: number
+  price: number // in kobo
 }
 
 export interface ProductItem {
@@ -62,9 +71,9 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-1a', label: '5kg Retail Bag', unit: 'KG', price: 650000, stock: 120, sku: 'RICE-5KG' },
-      { id: 'var-1b', label: '25kg Half Bag', unit: 'BAG', price: 2800000, stock: 50, sku: 'RICE-25KG' },
-      { id: 'var-1c', label: '50kg Full Wholesale Bag', unit: 'BAG', price: 5200000, stock: 35, sku: 'RICE-50KG' },
+      { id: 'var-1a', label: '5kg Retail Bag', unit: 'KG', price: 650000, stock: 120, minOrderQty: 1, sku: 'RICE-5KG' },
+      { id: 'var-1b', label: '25kg Half Bag', unit: 'BAG', price: 2800000, stock: 50, minOrderQty: 1, sku: 'RICE-25KG' },
+      { id: 'var-1c', label: '50kg Full Wholesale Bag', unit: 'BAG', price: 5200000, stock: 35, minOrderQty: 1, sku: 'RICE-50KG' },
     ],
   },
   {
@@ -78,9 +87,9 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-2a', label: '1 Litre Bottle', unit: 'LITRE', price: 180000, stock: 150, sku: 'PALM-1L' },
-      { id: 'var-2b', label: '5 Litres Jerrycan', unit: 'LITRE', price: 850000, stock: 80, sku: 'PALM-5L' },
-      { id: 'var-2c', label: '25 Litres Bulk Export Drum', unit: 'LITRE', price: 3900000, stock: 25, sku: 'PALM-25L' },
+      { id: 'var-2a', label: '1 Litre Bottle', unit: 'LITRE', price: 180000, stock: 150, minOrderQty: 1, sku: 'PALM-1L' },
+      { id: 'var-2b', label: '5 Litres Jerrycan', unit: 'LITRE', price: 850000, stock: 80, minOrderQty: 1, sku: 'PALM-5L' },
+      { id: 'var-2c', label: '25 Litres Bulk Export Drum', unit: 'LITRE', price: 3900000, stock: 25, minOrderQty: 1, sku: 'PALM-25L' },
     ],
   },
   {
@@ -94,8 +103,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-3a', label: '5kg Pack', unit: 'KG', price: 750000, stock: 120, sku: 'BEANS-5KG' },
-      { id: 'var-3b', label: '25kg Wholesale Bag', unit: 'BAG', price: 3200000, stock: 60, sku: 'BEANS-25KG' },
+      { id: 'var-3a', label: '5kg Pack', unit: 'KG', price: 750000, stock: 120, minOrderQty: 1, sku: 'BEANS-5KG' },
+      { id: 'var-3b', label: '25kg Wholesale Bag', unit: 'BAG', price: 3200000, stock: 60, minOrderQty: 1, sku: 'BEANS-25KG' },
     ],
   },
   {
@@ -109,9 +118,9 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-4a', label: '5kg Bag', unit: 'KG', price: 400000, stock: 200, sku: 'GARRI-5KG' },
-      { id: 'var-4b', label: '25kg Wholesale Bag', unit: 'BAG', price: 1800000, stock: 80, sku: 'GARRI-25KG' },
-      { id: 'var-4c', label: '50kg Bulk Bag', unit: 'BAG', price: 3400000, stock: 40, sku: 'GARRI-50KG' },
+      { id: 'var-4a', label: '5kg Bag', unit: 'KG', price: 400000, stock: 200, minOrderQty: 1, sku: 'GARRI-5KG' },
+      { id: 'var-4b', label: '25kg Wholesale Bag', unit: 'BAG', price: 1800000, stock: 80, minOrderQty: 1, sku: 'GARRI-25KG' },
+      { id: 'var-4c', label: '50kg Bulk Bag', unit: 'BAG', price: 3400000, stock: 40, minOrderQty: 1, sku: 'GARRI-50KG' },
     ],
   },
   {
@@ -125,9 +134,9 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-5a', label: '250g Retail Bag', unit: 'KG', price: 250000, stock: 80, sku: 'CRAY-250G' },
-      { id: 'var-5b', label: '500g Chef Pack', unit: 'KG', price: 480000, stock: 50, sku: 'CRAY-500G' },
-      { id: 'var-5c', label: '1kg Carton Box', unit: 'CARTON', price: 920000, stock: 30, sku: 'CRAY-1KG' },
+      { id: 'var-5a', label: '250g Retail Bag', unit: 'KG', price: 250000, stock: 80, minOrderQty: 1, sku: 'CRAY-250G' },
+      { id: 'var-5b', label: '500g Chef Pack', unit: 'KG', price: 480000, stock: 50, minOrderQty: 1, sku: 'CRAY-500G' },
+      { id: 'var-5c', label: '1kg Carton Box', unit: 'CARTON', price: 920000, stock: 30, minOrderQty: 1, sku: 'CRAY-1KG' },
     ],
   },
   {
@@ -141,9 +150,9 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-6a', label: '250ml Glass Jar', unit: 'LITRE', price: 350000, stock: 50, sku: 'HONEY-250ML' },
-      { id: 'var-6b', label: '500ml Glass Jar', unit: 'LITRE', price: 650000, stock: 30, sku: 'HONEY-500ML' },
-      { id: 'var-6c', label: '1 Litre Bottle', unit: 'LITRE', price: 1200000, stock: 15, sku: 'HONEY-1L' },
+      { id: 'var-6a', label: '250ml Glass Jar', unit: 'LITRE', price: 350000, stock: 50, minOrderQty: 1, sku: 'HONEY-250ML' },
+      { id: 'var-6b', label: '500ml Glass Jar', unit: 'LITRE', price: 650000, stock: 30, minOrderQty: 1, sku: 'HONEY-500ML' },
+      { id: 'var-6c', label: '1 Litre Bottle', unit: 'LITRE', price: 1200000, stock: 15, minOrderQty: 1, sku: 'HONEY-1L' },
     ],
   },
   {
@@ -157,8 +166,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-7a', label: '5kg Pack', unit: 'KG', price: 900000, stock: 80, sku: 'OFADA-5KG' },
-      { id: 'var-7b', label: '10kg Bag', unit: 'KG', price: 1700000, stock: 40, sku: 'OFADA-10KG' },
+      { id: 'var-7a', label: '5kg Pack', unit: 'KG', price: 900000, stock: 80, minOrderQty: 1, sku: 'OFADA-5KG' },
+      { id: 'var-7b', label: '10kg Bag', unit: 'KG', price: 1700000, stock: 40, minOrderQty: 1, sku: 'OFADA-10KG' },
     ],
   },
   {
@@ -172,8 +181,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: true,
     variants: [
-      { id: 'var-8a', label: '500g Bag', unit: 'KG', price: 150000, stock: 120, sku: 'ZOBO-500G' },
-      { id: 'var-8b', label: '1kg Bulk Bag', unit: 'KG', price: 280000, stock: 60, sku: 'ZOBO-1KG' },
+      { id: 'var-8a', label: '500g Bag', unit: 'KG', price: 150000, stock: 120, minOrderQty: 1, sku: 'ZOBO-500G' },
+      { id: 'var-8b', label: '1kg Bulk Bag', unit: 'KG', price: 280000, stock: 60, minOrderQty: 1, sku: 'ZOBO-1KG' },
     ],
   },
   {
@@ -187,8 +196,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-9a', label: '1 Litre Bottle', unit: 'LITRE', price: 220000, stock: 100, sku: 'GNUT-1L' },
-      { id: 'var-9b', label: '5 Litres Jerrycan', unit: 'LITRE', price: 1050000, stock: 50, sku: 'GNUT-5L' },
+      { id: 'var-9a', label: '1 Litre Bottle', unit: 'LITRE', price: 220000, stock: 100, minOrderQty: 1, sku: 'GNUT-1L' },
+      { id: 'var-9b', label: '5 Litres Jerrycan', unit: 'LITRE', price: 1050000, stock: 50, minOrderQty: 1, sku: 'GNUT-5L' },
     ],
   },
   {
@@ -202,8 +211,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-10a', label: '500g Pack', unit: 'KG', price: 180000, stock: 200, sku: 'TATA-500G' },
-      { id: 'var-10b', label: '1kg Bulk Pack', unit: 'KG', price: 340000, stock: 100, sku: 'TATA-1KG' },
+      { id: 'var-10a', label: '500g Pack', unit: 'KG', price: 180000, stock: 200, minOrderQty: 1, sku: 'TATA-500G' },
+      { id: 'var-10b', label: '1kg Bulk Pack', unit: 'KG', price: 340000, stock: 100, minOrderQty: 1, sku: 'TATA-1KG' },
     ],
   },
   {
@@ -217,8 +226,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-11a', label: '5kg Pack', unit: 'KG', price: 500000, stock: 100, sku: 'SOYA-5KG' },
-      { id: 'var-11b', label: '25kg Wholesale Bag', unit: 'BAG', price: 2200000, stock: 40, sku: 'SOYA-25KG' },
+      { id: 'var-11a', label: '5kg Pack', unit: 'KG', price: 500000, stock: 100, minOrderQty: 1, sku: 'SOYA-5KG' },
+      { id: 'var-11b', label: '25kg Wholesale Bag', unit: 'BAG', price: 2200000, stock: 40, minOrderQty: 1, sku: 'SOYA-25KG' },
     ],
   },
   {
@@ -232,8 +241,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-12a', label: '1kg Retail Pack', unit: 'KG', price: 200000, stock: 150, sku: 'FUFU-1KG' },
-      { id: 'var-12b', label: '5kg Family Pack', unit: 'KG', price: 950000, stock: 60, sku: 'FUFU-5KG' },
+      { id: 'var-12a', label: '1kg Retail Pack', unit: 'KG', price: 200000, stock: 150, minOrderQty: 1, sku: 'FUFU-1KG' },
+      { id: 'var-12b', label: '5kg Family Pack', unit: 'KG', price: 950000, stock: 60, minOrderQty: 1, sku: 'FUFU-5KG' },
     ],
   },
   {
@@ -247,8 +256,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-13a', label: '5kg Pack', unit: 'KG', price: 450000, stock: 80, sku: 'MILLET-5KG' },
-      { id: 'var-13b', label: '25kg Wholesale Bag', unit: 'BAG', price: 2000000, stock: 30, sku: 'MILLET-25KG' },
+      { id: 'var-13a', label: '5kg Pack', unit: 'KG', price: 450000, stock: 80, minOrderQty: 1, sku: 'MILLET-5KG' },
+      { id: 'var-13b', label: '25kg Wholesale Bag', unit: 'BAG', price: 2000000, stock: 30, minOrderQty: 1, sku: 'MILLET-25KG' },
     ],
   },
   {
@@ -262,8 +271,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-14a', label: '2kg Pack', unit: 'KG', price: 300000, stock: 60, sku: 'COCO-2KG' },
-      { id: 'var-14b', label: '5kg Chef Pack', unit: 'KG', price: 680000, stock: 30, sku: 'COCO-5KG' },
+      { id: 'var-14a', label: '2kg Pack', unit: 'KG', price: 300000, stock: 60, minOrderQty: 1, sku: 'COCO-2KG' },
+      { id: 'var-14b', label: '5kg Chef Pack', unit: 'KG', price: 680000, stock: 30, minOrderQty: 1, sku: 'COCO-5KG' },
     ],
   },
   {
@@ -277,8 +286,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-15a', label: '250g Pouch', unit: 'KG', price: 400000, stock: 40, sku: 'KOLA-250G' },
-      { id: 'var-15b', label: '500g Pack', unit: 'KG', price: 750000, stock: 20, sku: 'KOLA-500G' },
+      { id: 'var-15a', label: '250g Pouch', unit: 'KG', price: 400000, stock: 40, minOrderQty: 1, sku: 'KOLA-250G' },
+      { id: 'var-15b', label: '500g Pack', unit: 'KG', price: 750000, stock: 20, minOrderQty: 1, sku: 'KOLA-500G' },
     ],
   },
   {
@@ -292,8 +301,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-16a', label: '100g Wrap', unit: 'PIECE', price: 80000, stock: 200, sku: 'IRU-100G' },
-      { id: 'var-16b', label: '500g Sealed Container', unit: 'KG', price: 380000, stock: 80, sku: 'IRU-500G' },
+      { id: 'var-16a', label: '100g Wrap', unit: 'PIECE', price: 80000, stock: 200, minOrderQty: 1, sku: 'IRU-100G' },
+      { id: 'var-16b', label: '500g Sealed Container', unit: 'KG', price: 380000, stock: 80, minOrderQty: 1, sku: 'IRU-500G' },
     ],
   },
   {
@@ -307,9 +316,9 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-17a', label: '5kg Pack', unit: 'KG', price: 380000, stock: 100, sku: 'CORN-5KG' },
-      { id: 'var-17b', label: '25kg Wholesale Bag', unit: 'BAG', price: 1700000, stock: 50, sku: 'CORN-25KG' },
-      { id: 'var-17c', label: '50kg Bulk Bag', unit: 'BAG', price: 3200000, stock: 20, sku: 'CORN-50KG' },
+      { id: 'var-17a', label: '5kg Pack', unit: 'KG', price: 380000, stock: 100, minOrderQty: 1, sku: 'CORN-5KG' },
+      { id: 'var-17b', label: '25kg Wholesale Bag', unit: 'BAG', price: 1700000, stock: 50, minOrderQty: 1, sku: 'CORN-25KG' },
+      { id: 'var-17c', label: '50kg Bulk Bag', unit: 'BAG', price: 3200000, stock: 20, minOrderQty: 1, sku: 'CORN-50KG' },
     ],
   },
   {
@@ -323,8 +332,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-18a', label: '1kg Pouch', unit: 'KG', price: 350000, stock: 80, sku: 'SESAME-1KG' },
-      { id: 'var-18b', label: '5kg Bag', unit: 'KG', price: 1600000, stock: 30, sku: 'SESAME-5KG' },
+      { id: 'var-18a', label: '1kg Pouch', unit: 'KG', price: 350000, stock: 80, minOrderQty: 1, sku: 'SESAME-1KG' },
+      { id: 'var-18b', label: '5kg Bag', unit: 'KG', price: 1600000, stock: 30, minOrderQty: 1, sku: 'SESAME-5KG' },
     ],
   },
   {
@@ -338,8 +347,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-19a', label: '5kg Pack', unit: 'KG', price: 700000, stock: 80, sku: 'COWPEA-5KG' },
-      { id: 'var-19b', label: '25kg Wholesale Bag', unit: 'BAG', price: 3000000, stock: 30, sku: 'COWPEA-25KG' },
+      { id: 'var-19a', label: '5kg Pack', unit: 'KG', price: 700000, stock: 80, minOrderQty: 1, sku: 'COWPEA-5KG' },
+      { id: 'var-19b', label: '25kg Wholesale Bag', unit: 'BAG', price: 3000000, stock: 30, minOrderQty: 1, sku: 'COWPEA-25KG' },
     ],
   },
   {
@@ -353,8 +362,8 @@ export const ALL_PRODUCTS: ProductItem[] = [
     isActive: true,
     isFeatured: false,
     variants: [
-      { id: 'var-20a', label: '500g Pouch', unit: 'KG', price: 250000, stock: 100, sku: 'TIGER-500G' },
-      { id: 'var-20b', label: '1kg Pack', unit: 'KG', price: 450000, stock: 50, sku: 'TIGER-1KG' },
+      { id: 'var-20a', label: '500g Pouch', unit: 'KG', price: 250000, stock: 100, minOrderQty: 1, sku: 'TIGER-500G' },
+      { id: 'var-20b', label: '1kg Pack', unit: 'KG', price: 450000, stock: 50, minOrderQty: 1, sku: 'TIGER-1KG' },
     ],
   },
 ]
@@ -386,6 +395,11 @@ export async function getFeaturedProducts(): Promise<ProductItem[]> {
         category: true,
         variants: {
           orderBy: { price: 'asc' },
+          include: {
+            priceTiers: {
+              orderBy: { minQty: 'asc' },
+            },
+          },
         },
       },
       take: 8,
@@ -406,8 +420,15 @@ export async function getFeaturedProducts(): Promise<ProductItem[]> {
           label: v.label,
           unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
           price: v.price,
+          compareAtPrice: v.compareAtPrice,
           stock: v.stock,
+          minOrderQty: v.minOrderQty,
           sku: v.sku,
+          priceTiers: v.priceTiers?.map((t) => ({
+            id: t.id,
+            minQty: t.minQty,
+            price: t.price,
+          })),
         })),
       }))
     }
@@ -458,6 +479,11 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
           category: true,
           variants: {
             orderBy: { price: 'asc' },
+            include: {
+              priceTiers: {
+                orderBy: { minQty: 'asc' },
+              },
+            },
           },
         },
         skip: (page - 1) * limit,
@@ -481,8 +507,15 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
           label: v.label,
           unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
           price: v.price,
+          compareAtPrice: v.compareAtPrice,
           stock: v.stock,
+          minOrderQty: v.minOrderQty,
           sku: v.sku,
+          priceTiers: v.priceTiers?.map((t) => ({
+            id: t.id,
+            minQty: t.minQty,
+            price: t.price,
+          })),
         })),
       }))
 
@@ -567,6 +600,11 @@ export async function getProductBySlug(slug: string): Promise<ProductItem | null
         category: true,
         variants: {
           orderBy: { price: 'asc' },
+          include: {
+            priceTiers: {
+              orderBy: { minQty: 'asc' },
+            },
+          },
         },
       },
     })
@@ -587,8 +625,15 @@ export async function getProductBySlug(slug: string): Promise<ProductItem | null
           label: v.label,
           unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
           price: v.price,
+          compareAtPrice: v.compareAtPrice,
           stock: v.stock,
+          minOrderQty: v.minOrderQty,
           sku: v.sku,
+          priceTiers: v.priceTiers?.map((t) => ({
+            id: t.id,
+            minQty: t.minQty,
+            price: t.price,
+          })),
         })),
       }
     }
@@ -612,6 +657,11 @@ export async function getRelatedProducts(currentId: string, categoryId: string):
         category: true,
         variants: {
           orderBy: { price: 'asc' },
+          include: {
+            priceTiers: {
+              orderBy: { minQty: 'asc' },
+            },
+          },
         },
       },
       take: 4,
@@ -633,8 +683,15 @@ export async function getRelatedProducts(currentId: string, categoryId: string):
           label: v.label,
           unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
           price: v.price,
+          compareAtPrice: v.compareAtPrice,
           stock: v.stock,
+          minOrderQty: v.minOrderQty,
           sku: v.sku,
+          priceTiers: v.priceTiers?.map((t) => ({
+            id: t.id,
+            minQty: t.minQty,
+            price: t.price,
+          })),
         })),
       }))
     }

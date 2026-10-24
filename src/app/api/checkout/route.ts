@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { generateReference } from '@/lib/utils'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { siteConfig } from '@/config/site'
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, 'Name is required'),
@@ -70,12 +71,25 @@ export async function POST(req: Request) {
     for (const item of items) {
       const variant = await prisma.productVariant.findUnique({
         where: { id: item.variantId },
-        include: { product: true },
+        include: {
+          product: true,
+          priceTiers: {
+            orderBy: { minQty: 'desc' },
+          },
+        },
       })
 
       if (!variant || !variant.product.isActive) {
         return NextResponse.json(
           { success: false, error: `Product or variant not found: ${item.variantId}` },
+          { status: 400 }
+        )
+      }
+
+      const minOrder = variant.minOrderQty || 1
+      if (item.qty < minOrder) {
+        return NextResponse.json(
+          { success: false, error: `Minimum order quantity for ${variant.product.name} (${variant.label}) is ${minOrder}` },
           { status: 400 }
         )
       }
@@ -87,7 +101,16 @@ export async function POST(req: Request) {
         )
       }
 
-      const lineTotal = variant.price * item.qty
+      // Re-price using best matching wholesale tier for quantity
+      let unitPrice = variant.price
+      if (variant.priceTiers && variant.priceTiers.length > 0) {
+        const matchingTier = variant.priceTiers.find((t) => item.qty >= t.minQty)
+        if (matchingTier) {
+          unitPrice = matchingTier.price
+        }
+      }
+
+      const lineTotal = unitPrice * item.qty
       subtotal += lineTotal
 
       orderItems.push({
@@ -95,16 +118,21 @@ export async function POST(req: Request) {
         variantId: item.variantId,
         nameSnapshot: variant.product.name,
         labelSnapshot: variant.label,
-        unitPrice: variant.price,
+        unitPrice,
         qty: item.qty,
       })
     }
 
-    // Get delivery fee from settings (default to ₦1500)
-    const deliveryFeeSetting = await prisma.setting.findUnique({
+    // Delivery fee by state (Lagos vs other states)
+    const isLagos = state.trim().toLowerCase() === 'lagos'
+    const settingKey = isLagos ? 'delivery_fee_lagos' : 'delivery_fee_other'
+    const deliveryFeeSetting = (await prisma.setting.findUnique({
+      where: { key: settingKey },
+    })) || (await prisma.setting.findUnique({
       where: { key: 'delivery_fee_default' },
-    })
-    const deliveryFee = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : 150000
+    }))
+    const defaultFee = isLagos ? 150000 : 350000
+    const deliveryFee = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : defaultFee
     const total = subtotal + deliveryFee
 
     // Generate unique transaction reference
@@ -148,9 +176,9 @@ export async function POST(req: Request) {
           phonenumber: phone,
         },
         customizations: {
-          title: 'Supalovefoods Order',
+          title: `${siteConfig.name} Order`,
           description: `${orderItems.length} items - ₦${(total / 100).toLocaleString()}`,
-          logo: `${appUrl}/logo.png`,
+          logo: `${siteConfig.siteUrl}/logo-mark.png`,
         },
         meta: {
           order_id: order.id,

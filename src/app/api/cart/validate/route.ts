@@ -38,8 +38,10 @@ export async function POST(req: Request) {
         label: string
         price: number
         stock: number
+        minOrderQty: number
         sku: string
         unit: string
+        priceTiers: { id?: string; minQty: number; price: number }[]
         product: {
           id: string
           name: string
@@ -52,7 +54,12 @@ export async function POST(req: Request) {
       try {
         const found = await prisma.productVariant.findUnique({
           where: { id: reqItem.variantId },
-          include: { product: true },
+          include: {
+            product: true,
+            priceTiers: {
+              orderBy: { minQty: 'desc' },
+            },
+          },
         })
         if (found) {
           variantData = {
@@ -60,8 +67,10 @@ export async function POST(req: Request) {
             label: found.label,
             price: found.price,
             stock: found.stock,
+            minOrderQty: found.minOrderQty || 1,
             sku: found.sku,
             unit: found.unit,
+            priceTiers: found.priceTiers || [],
             product: {
               id: found.product.id,
               name: found.product.name,
@@ -85,8 +94,10 @@ export async function POST(req: Request) {
               label: v.label,
               price: v.price,
               stock: v.stock,
+              minOrderQty: v.minOrderQty || 1,
               sku: v.sku,
               unit: v.unit,
+              priceTiers: v.priceTiers ? [...v.priceTiers].sort((a, b) => b.minQty - a.minQty) : [],
               product: {
                 id: p.id,
                 name: p.name,
@@ -107,12 +118,28 @@ export async function POST(req: Request) {
 
       const availableStock = variantData.stock
       let confirmedQty = reqItem.qty
+
+      // Enforce minimum order quantity
+      const minOrder = variantData.minOrderQty || 1
+      if (confirmedQty < minOrder) {
+        confirmedQty = minOrder
+      }
+
       if (confirmedQty > availableStock) {
         confirmedQty = Math.max(1, availableStock)
         hasStockIssues = true
       }
 
-      const itemTotal = variantData.price * confirmedQty
+      // Tier pricing: find highest tier where confirmedQty >= minQty
+      let activeUnitPrice = variantData.price
+      if (variantData.priceTiers && variantData.priceTiers.length > 0) {
+        const matchingTier = variantData.priceTiers.find((t) => confirmedQty >= t.minQty)
+        if (matchingTier) {
+          activeUnitPrice = matchingTier.price
+        }
+      }
+
+      const itemTotal = activeUnitPrice * confirmedQty
       subtotal += itemTotal
 
       validatedItems.push({
@@ -121,10 +148,11 @@ export async function POST(req: Request) {
         name: variantData.product.name,
         slug: variantData.product.slug,
         label: variantData.label,
-        price: variantData.price, // verified in kobo
+        price: activeUnitPrice, // verified unit price in kobo with tiers applied
         unit: variantData.unit,
         image: variantData.product.images[0] || null,
         stock: variantData.stock,
+        minOrderQty: minOrder,
         sku: variantData.sku,
         qty: confirmedQty,
         lineTotal: itemTotal,

@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { MapPin, Mail, Phone, ShieldCheck, Truck, Globe, Award, CreditCard } from 'lucide-react'
+import { MapPin, Mail, Phone, ShieldCheck, Truck, Globe, Award, CreditCard, MessageCircle, Instagram, Facebook, Twitter } from 'lucide-react'
 import { Logo } from '@/components/brand/Logo'
+import { siteConfig, telHref, mailHref, whatsappHref } from '@/config/site'
 
 const CATEGORY_LINKS = [
   { label: 'Grains & Rice (Rice, Maize, Millet)', href: '/products?category=grains-rice' },
@@ -21,12 +22,13 @@ const EXPORT_LINKS = [
 ]
 
 const SUPPORT_LINKS = [
-  { label: 'Track Order Status', href: '/orders' },
-  { label: 'All Products Catalog', href: '/products' },
-  { label: 'Shopping Cart', href: '/cart' },
-  { label: 'Quality Guarantee & Inspection', href: '/products' },
+  { label: 'Track Order Status', href: '/track-order' },
+  { label: 'Shipping & Delivery', href: '/delivery' },
+  { label: 'Refunds & Returns', href: '/refunds' },
   { label: 'Terms of Supply & Trade', href: '/terms' },
-  { label: 'Admin Management Portal', href: '/admin/login' },
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Contact Us', href: '/contact' },
+  { label: 'Admin Portal', href: '/admin/login' },
 ]
 
 export function Footer() {
@@ -84,7 +86,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
           {/* Column 1: Brand & Contact Info */}
           <div className="space-y-4">
-            <Logo size="md" />
+            <Logo size="md" showTagline={true} />
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
               Your trusted partner for agricultural commodity export, wholesale food supplies, and retail domestic delivery. Direct from verified Nigerian farms and processors.
@@ -93,23 +95,73 @@ export function Footer() {
             <div className="space-y-2.5 pt-2 text-xs text-slate-400">
               <div className="flex items-start gap-2.5">
                 <MapPin size={15} className="text-brand-green shrink-0 mt-0.5" />
-                <span>Apapa Port Agro-Hub &amp; Ikeja Logistics Center, Lagos, Nigeria</span>
+                <span>{siteConfig.address}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail size={15} className="text-brand-orange shrink-0" />
                 <a
-                  href="mailto:contact@supalovefoods.com"
+                  href={mailHref(siteConfig.email)}
                   className="hover:text-white transition-colors"
                 >
-                  orders@supalovefoods.com
+                  {siteConfig.email}
                 </a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone size={15} className="text-brand-green shrink-0" />
-                <a href="tel:+2348007872568" className="hover:text-white transition-colors">
-                  +234 (0) 800-SUPALOVE / +234 812 345 6789
+                <a href={telHref(siteConfig.phone)} className="hover:text-white transition-colors">
+                  {siteConfig.phoneIntl || siteConfig.phone}
                 </a>
               </div>
+              {siteConfig.whatsapp && (
+                <div className="flex items-center gap-2.5">
+                  <MessageCircle size={15} className="text-brand-orange shrink-0" />
+                  <a
+                    href={whatsappHref()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-white transition-colors"
+                  >
+                    WhatsApp Chat
+                  </a>
+                </div>
+              )}
+              {(siteConfig.socials.instagram || siteConfig.socials.facebook || siteConfig.socials.x) && (
+                <div className="flex items-center gap-3 pt-2">
+                  {siteConfig.socials.instagram && (
+                    <a
+                      href={siteConfig.socials.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 hover:text-brand-orange transition-colors"
+                      aria-label="Instagram"
+                    >
+                      <Instagram size={16} />
+                    </a>
+                  )}
+                  {siteConfig.socials.facebook && (
+                    <a
+                      href={siteConfig.socials.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 hover:text-brand-green transition-colors"
+                      aria-label="Facebook"
+                    >
+                      <Facebook size={16} />
+                    </a>
+                  )}
+                  {siteConfig.socials.x && (
+                    <a
+                      href={siteConfig.socials.x}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 hover:text-white transition-colors"
+                      aria-label="X / Twitter"
+                    >
+                      <Twitter size={16} />
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

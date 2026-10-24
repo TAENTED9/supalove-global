@@ -1,25 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingBag,
   Check,
   Plus,
   Minus,
-  ShieldCheck,
-  Truck,
-  Ship,
-  PhoneCall,
-  CheckCircle2,
-  Sparkles,
-  ArrowRight,
-  Share2,
+  Heart,
+  MessageCircle,
+  Phone,
+  Package,
+  ArrowLeft,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { useCartStore } from '@/store/cart'
+import { siteWhatsappHref } from '@/config/site'
 import { toast } from 'sonner'
 import type { ProductItem, VariantItem } from '@/lib/data'
 
@@ -38,6 +35,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       unit: 'KG',
       price: 0,
       stock: 10,
+      minOrderQty: 1,
       sku: 'SKU',
     }
   )
@@ -45,11 +43,18 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [added, setAdded] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   const galleryImages =
     product.images.length > 0
       ? product.images
       : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80']
+
+  // Check if product is saved in wishlist
+  useEffect(() => {
+    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]')
+    setSaved(wishlist.includes(product.id))
+  }, [product.id])
 
   const handleAddToCart = () => {
     addItem({
@@ -88,68 +93,76 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     router.push('/checkout')
   }
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: `Buy verified ${product.name} on Supalovefoods`,
-        url: window.location.href,
-      }).catch(() => {})
+  const handleSave = () => {
+    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]')
+    if (saved) {
+      const newWishlist = wishlist.filter((id: string) => id !== product.id)
+      localStorage.setItem('wishlist', JSON.stringify(newWishlist))
+      setSaved(false)
+      toast.info('Removed from wishlist')
     } else {
-      navigator.clipboard.writeText(window.location.href)
-      toast.info('Product link copied to clipboard!')
+      wishlist.push(product.id)
+      localStorage.setItem('wishlist', JSON.stringify(wishlist))
+      setSaved(true)
+      toast.success('Saved to wishlist')
     }
   }
 
-  const unitTotal = selectedVariant.price * quantity
+  const handleWhatsAppOrder = () => {
+    const message = `Hi, I want to order ${product.name} - ${selectedVariant.label} x${quantity}`
+    const url = siteWhatsappHref(message)
+    window.open(url, '_blank')
+  }
+
+  const minQty = selectedVariant.minOrderQty || 1
+
+  // Clamp quantity to minOrderQty and stock
+  const clampedQuantity = Math.max(minQty, Math.min(quantity, selectedVariant.stock || 999))
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-      {/* Left Column: Image Gallery */}
-      <div className="lg:col-span-6 space-y-4">
-        {/* Main Image Container */}
-        <div className="relative aspect-square w-full rounded-3xl bg-slate-100 overflow-hidden border border-slate-200/80 shadow-md">
-          <Image
-            src={galleryImages[selectedImage] || galleryImages[0]}
-            alt={product.name}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover transition-all duration-300"
-          />
+    <div>
+      {/* Back button using router.back() */}
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green transition-colors mb-4"
+      >
+        <ArrowLeft size={14} /> Back
+      </button>
 
-          {/* Badges on Gallery */}
-          <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
-            <span className="text-xs font-bold uppercase tracking-wider bg-white/95 backdrop-blur-md text-slate-800 px-3 py-1 rounded-full shadow-sm border border-slate-200/50">
-              {product.category.name}
-            </span>
-            <span className="text-xs font-extrabold uppercase tracking-wider bg-brand-green text-white px-3 py-1 rounded-full shadow-sm w-fit flex items-center gap-1">
-              <CheckCircle2 size={12} /> 100% Stone-Free
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleShare}
-            className="absolute top-4 right-4 p-2.5 rounded-full bg-white/90 backdrop-blur-md text-slate-600 hover:text-slate-900 shadow-sm border border-slate-200/50 transition-colors"
-            aria-label="Share product"
-          >
-            <Share2 size={16} />
-          </button>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        {/* Left Column (lg:col-span-3): Hero, Thumbnails, Description */}
+        <div className="lg:col-span-3 space-y-4">
+        {/* Square Hero */}
+        <div className="relative aspect-square w-full rounded-2xl bg-slate-100 overflow-hidden border border-slate-200/80">
+          {galleryImages[selectedImage] ? (
+            <Image
+              src={galleryImages[selectedImage]}
+              alt={product.name}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 60vw"
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-green/20 to-brand-orange/20">
+              <span className="text-6xl font-black text-slate-400">{product.name[0]}</span>
+            </div>
+          )}
         </div>
 
-        {/* Thumbnail Selector if multiple images exist */}
+        {/* 64x64 Thumbnail Strip */}
         {galleryImages.length > 1 && (
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto md:flex-wrap">
             {galleryImages.map((img, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setSelectedImage(idx)}
-                className={`relative w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all shrink-0 ${
+                className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 ${
                   selectedImage === idx
-                    ? 'border-brand-green shadow-md scale-105'
-                    : 'border-slate-200 opacity-70 hover:opacity-100'
+                    ? 'border-brand-green'
+                    : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <Image src={img} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" />
@@ -158,69 +171,46 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           </div>
         )}
 
-        {/* Trust Card beneath gallery */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 space-y-3.5">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-            <ShieldCheck size={16} className="text-brand-green" />
-            Verified Commodity Assurance
-          </h4>
-          <div className="grid grid-cols-2 gap-3 text-xs text-slate-600">
-            <div className="flex items-center gap-2">
-              <Sparkles size={14} className="text-brand-orange" />
-              <span>Machine sorted &amp; de-stoned</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Truck size={14} className="text-brand-green" />
-              <span>Doorstep Lagos delivery (24h)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Ship size={14} className="text-blue-600" />
-              <span>Phyto-sanitary export clearance</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={14} className="text-brand-green" />
-              <span>Tamper-evident packaging</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Column: Product Info & Variant Options */}
-      <div className="lg:col-span-6 space-y-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Link
-              href={`/products?category=${product.category.slug}`}
-              className="text-xs font-bold text-brand-green hover:underline uppercase tracking-wider"
-            >
-              {product.category.name}
-            </Link>
-            <span className="text-slate-300">&middot;</span>
-            <span className="text-xs text-slate-400 font-mono">SKU: {selectedVariant.sku}</span>
-          </div>
-
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-            {product.name}
-          </h1>
-
-          <p className="text-xs sm:text-sm text-slate-600 mt-3 leading-relaxed">
+        {/* Description Card */}
+        <div className="rounded-2xl border border-slate-200 p-5">
+          <h3 className="text-sm font-bold text-slate-900 mb-2">Description</h3>
+          <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
             {product.description}
           </p>
         </div>
+      </div>
 
-        {/* Variant Selection Box */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Select Size / Packaging Option:
-              </span>
-              <span className="text-xs font-semibold text-brand-green">
-                {selectedVariant.label} ({selectedVariant.unit})
-              </span>
+      {/* Right Column (lg:col-span-2): Buy Box */}
+      <div className="lg:col-span-2">
+        <div className="rounded-2xl border border-slate-200 p-5 space-y-4">
+          {/* Name */}
+          <h1 className="text-xl font-black text-slate-900 leading-tight">
+            {product.name}
+          </h1>
+
+          {/* Price */}
+          <div className="space-y-1">
+            {selectedVariant.compareAtPrice && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400 line-through">
+                  {formatPrice(selectedVariant.compareAtPrice)}
+                </span>
+                <span className="text-xs font-bold text-brand-orange bg-brand-orange/10 px-2 py-0.5 rounded-full">
+                  -{Math.round(((selectedVariant.compareAtPrice - selectedVariant.price) / selectedVariant.compareAtPrice) * 100)}%
+                </span>
+              </div>
+            )}
+            <div className="text-3xl font-black text-brand-green">
+              {formatPrice(selectedVariant.price)}
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {/* Variant Chips */}
+          <div>
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">
+              Select variant
+            </span>
+            <div className="flex flex-wrap gap-2">
               {product.variants.map((v) => {
                 const isSelected = selectedVariant.id === v.id
                 return (
@@ -229,89 +219,72 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     type="button"
                     onClick={() => {
                       setSelectedVariant(v)
-                      setQuantity(1)
+                      setQuantity(Math.max(v.minOrderQty || 1, 1))
                     }}
-                    className={`p-3 rounded-xl border text-left transition-all ${
+                    className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
                       isSelected
-                        ? 'border-brand-green bg-brand-green/10 ring-2 ring-brand-green/20'
-                        : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+                        ? 'border-brand-green bg-brand-green/10 text-brand-green'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300'
                     }`}
                   >
-                    <span className="block text-xs font-bold text-slate-900">{v.label}</span>
-                    <span className="block text-xs font-extrabold text-brand-green mt-1">
-                      {formatPrice(v.price)}
-                    </span>
-                    <span className="block text-[10px] text-slate-400 mt-0.5">
-                      {v.stock > 0 ? `${v.stock} in stock` : 'Out of stock'}
-                    </span>
+                    {v.label}
                   </button>
                 )
               })}
             </div>
           </div>
 
-          {/* Pricing Display */}
-          <div className="pt-4 border-t border-slate-100 flex items-baseline justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                Price ({selectedVariant.label})
-              </span>
-              <div className="text-2xl sm:text-3xl font-black text-brand-green">
-                {formatPrice(selectedVariant.price)}
-              </div>
-            </div>
-            {quantity > 1 && (
-              <div className="text-right">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                  Total ({quantity} units)
-                </span>
-                <span className="text-lg font-bold text-slate-900">
-                  {formatPrice(unitTotal)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Quantity Stepper & Stock Check */}
-          <div className="flex items-center gap-4 pt-2">
-            <span className="text-xs font-bold text-slate-700">Quantity:</span>
-            <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
+          {/* Qty Stepper */}
+          <div>
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">
+              Quantity (min: {minQty})
+            </span>
+            <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
               <button
                 type="button"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
+                onClick={() => setQuantity(Math.max(minQty, quantity - 1))}
+                disabled={quantity <= minQty}
+                className="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40"
                 aria-label="Decrease quantity"
               >
-                <Minus size={14} />
+                <Minus size={16} />
               </button>
-              <span className="w-12 text-center text-sm font-bold text-slate-800">
-                {quantity}
+              <span className="flex-1 text-center text-sm font-bold text-slate-800">
+                {clampedQuantity}
               </span>
               <button
                 type="button"
                 onClick={() => setQuantity(Math.min(selectedVariant.stock || 999, quantity + 1))}
                 disabled={Boolean(selectedVariant.stock && quantity >= selectedVariant.stock)}
-                className="w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40"
+                className="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40"
                 aria-label="Increase quantity"
               >
-                <Plus size={14} />
+                <Plus size={16} />
               </button>
             </div>
-            <span className="text-xs text-slate-400">
-              {selectedVariant.unit} unit
+          </div>
+
+          {/* Stock Badge */}
+          <div className="flex items-center gap-2">
+            <Package size={14} className="text-slate-400" />
+            <span className="text-xs text-slate-600">
+              {selectedVariant.stock > 0
+                ? `${selectedVariant.stock} in stock`
+                : 'Out of stock'}
             </span>
           </div>
 
-          {/* CTA Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+          {/* Add to Cart + Buy Now */}
+          <div className="space-y-2">
             <button
               type="button"
               onClick={handleAddToCart}
-              className={`py-3.5 px-6 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
+              disabled={selectedVariant.stock === 0}
+              className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                 added
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-brand-green hover:bg-brand-green-hover text-white shadow-brand-green/20'
-              }`}
+                  : 'bg-brand-green hover:bg-brand-green-hover text-white'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {added ? (
                 <>
@@ -326,25 +299,71 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             <button
               type="button"
               onClick={handleBuyNow}
-              className="py-3.5 px-6 rounded-xl font-bold text-xs sm:text-sm bg-brand-orange hover:bg-brand-orange-hover text-white flex items-center justify-center gap-1.5 transition-all shadow-md shadow-brand-orange/20 active:scale-95"
+              disabled={selectedVariant.stock === 0}
+              className="w-full py-3 rounded-xl font-bold text-sm bg-brand-orange hover:bg-brand-orange-hover text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Buy Now <ArrowRight size={15} />
+              Buy Now
             </button>
           </div>
-        </div>
 
-        {/* Commercial Wholesale Callout */}
-        <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex items-start gap-3">
-          <PhoneCall size={18} className="text-brand-orange shrink-0 mt-0.5" />
-          <div className="text-xs">
-            <p className="font-bold text-slate-900">Ordering 50+ Bags or Need a 20ft/40ft Ocean Container?</p>
-            <p className="text-slate-600 mt-0.5">
-              Contact our wholesale desk directly at <span className="font-bold text-slate-800">+234 (0) 800-SUPALOVE</span> for direct bulk invoice discounting and freight booking.
-            </p>
+          {/* Order on WhatsApp */}
+          <button
+            type="button"
+            onClick={handleWhatsAppOrder}
+            className="w-full py-3 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2 transition-all"
+          >
+            <MessageCircle size={16} /> Order on WhatsApp
+          </button>
+
+          {/* Save Button */}
+          <button
+            type="button"
+            onClick={handleSave}
+            className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+              saved
+                ? 'bg-brand-green text-white'
+                : 'border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <Heart size={16} className={saved ? 'fill-white' : ''} />
+            {saved ? 'Saved' : 'Save for later'}
+          </button>
+
+          {/* Delivery Note */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="flex items-start gap-2">
+              <Phone size={14} className="text-brand-green shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Delivery fees calculated at checkout based on your location.
+              </p>
+            </div>
           </div>
+
+          {/* Wholesale Tiers */}
+          {selectedVariant.priceTiers && selectedVariant.priceTiers.length > 0 && (
+            <div className="p-3 rounded-xl bg-brand-green/5 border border-brand-green/20">
+              <h4 className="text-xs font-bold text-brand-green uppercase tracking-wider mb-2">
+                Buy more, save more
+              </h4>
+              <div className="space-y-1.5">
+                {selectedVariant.priceTiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white/50"
+                  >
+                    <span className="text-slate-700">{tier.minQty}+ units</span>
+                    <span className="font-bold text-brand-green">
+                      {formatPrice(tier.price)} each
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
-  )
+  </div>
+)
 }
 export default ProductDetailClient

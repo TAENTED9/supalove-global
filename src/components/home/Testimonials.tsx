@@ -10,7 +10,7 @@ const REVIEWS = [
   },
   {
     name: 'Chinedu Eze',
-    role: 'Diaspora Grocery Importer (Peckham, London)',
+    role: 'Diaspora Grocery Buyer (Peckham, London)',
     content: 'Exporting food items to the UK used to be a nightmare with customs inspection. Supalovefoods handles the phyto-sanitary documentation and moisture packaging flawlessly. The smoked crayfish arrives fragrant and dry.',
     rating: 5,
     location: 'London, United Kingdom',

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Ship, PhoneCall, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { siteConfig, telHref } from '@/config/site'
 
 export function ExportCtaBanner() {
   return (
@@ -43,7 +44,7 @@ export function ExportCtaBanner() {
                 Browse Wholesale Bags <ArrowRight size={15} />
               </Link>
               <a
-                href="tel:+2348007872568"
+                href={telHref(siteConfig.phone)}
                 className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/20 font-bold px-6 py-3.5 rounded-xl transition-all text-xs sm:text-sm text-center backdrop-blur-md"
               >
                 <PhoneCall size={15} className="text-brand-orange" />

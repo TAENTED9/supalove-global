@@ -52,6 +52,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const primaryImage = product.images[0] || 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80'
 
+  // Calculate discount percentage if compareAtPrice exists
+  const discountPercent = selectedVariant.compareAtPrice
+    ? Math.round(((selectedVariant.compareAtPrice - selectedVariant.price) / selectedVariant.compareAtPrice) * 100)
+    : 0
+
   return (
     <div className="group flex flex-col bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-200 hover:-translate-y-1">
       {/* Product Image & Badges */}
@@ -72,6 +77,11 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.isFeatured && (
             <span className="text-[9px] font-extrabold uppercase tracking-wider bg-brand-orange text-white px-2 py-0.5 rounded-full shadow-sm w-fit">
               Featured
+            </span>
+          )}
+          {discountPercent > 0 && (
+            <span className="text-[9px] font-extrabold uppercase tracking-wider bg-brand-orange text-white px-2 py-0.5 rounded-full shadow-sm w-fit">
+              -{discountPercent}%
             </span>
           )}
         </div>
@@ -126,9 +136,16 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="text-[10px] uppercase font-semibold text-slate-400 block">
               {selectedVariant.label}
             </span>
-            <span className="text-base sm:text-lg font-extrabold text-brand-green">
-              {formatPrice(selectedVariant.price)}
-            </span>
+            <div className="flex items-center gap-2">
+              {selectedVariant.compareAtPrice && (
+                <span className="text-xs text-slate-400 line-through">
+                  {formatPrice(selectedVariant.compareAtPrice)}
+                </span>
+              )}
+              <span className="text-base sm:text-lg font-extrabold text-brand-green">
+                {formatPrice(selectedVariant.price)}
+              </span>
+            </div>
           </div>
 
           <button

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Logo } from '@/components/brand/Logo'
 import { useCartStore } from '@/store/cart'
+import { siteConfig, telHref } from '@/config/site'
 import { SearchModal } from '@/components/layout/SearchModal'
 
 const CATEGORIES = [
@@ -122,7 +123,7 @@ export function Navbar() {
       {/* Main Sticky Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
+          <div className="flex items-center justify-between h-14 sm:h-20 gap-4">
             {/* Left: Brand Logo */}
             <div className="shrink-0 flex items-center gap-3">
               <Logo size="md" />
@@ -351,7 +352,9 @@ export function Navbar() {
             {/* Quick Contact In Mobile Menu */}
             <div className="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-500">
               <PhoneCall size={14} className="text-brand-green" />
-              <span>Customer Inquiries: +234 (0) 800-SUPALOVE</span>
+              <a href={telHref()} className="hover:text-brand-green transition-colors">
+                Customer Inquiries: {siteConfig.phoneIntl || siteConfig.phone}
+              </a>
             </div>
           </div>
         )}

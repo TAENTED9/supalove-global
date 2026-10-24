@@ -18,11 +18,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials, req) {
-        // Rate limiting: 5 attempts per 15 minutes per IP
+        // Rate limiting: 3 attempts per 15 minutes per IP + email
         const ip = req?.headers?.get('x-forwarded-for') || req?.headers?.get('x-real-ip') || 'unknown'
-        const rateLimit = checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000)
+        const emailAttempt = String(credentials?.email || '').trim().toLowerCase()
+        const rateLimit = checkRateLimit(`login:${ip}:${emailAttempt}`, 3, 15 * 60 * 1000)
         if (!rateLimit.success) {
-          throw new Error('Too many login attempts. Please try again later.')
+          throw new Error('Too many failed login attempts. Please try again in 15 minutes.')
         }
 
         const parsed = loginSchema.safeParse(credentials)

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { XCircle, ArrowRight, RefreshCw, Phone, Mail } from 'lucide-react'
+import { siteConfig, telHref, mailHref } from '@/config/site'
 
 export default function CheckoutFailedPage() {
   return (
@@ -66,11 +67,11 @@ export default function CheckoutFailedPage() {
           <div className="space-y-3 text-sm">
             <div className="flex items-center gap-3">
               <Phone size={16} className="text-brand-green shrink-0" />
-              <span className="text-slate-600">Call us: {process.env.NEXT_PUBLIC_SUPPORT_PHONE || '+234 800 123 4567'}</span>
+              <a href={telHref(siteConfig.phone)} className="text-slate-600 hover:text-brand-green">Call us: {siteConfig.phone}</a>
             </div>
             <div className="flex items-center gap-3">
               <Mail size={16} className="text-brand-green shrink-0" />
-              <span className="text-slate-600">Email: {process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@supalovefoods.com'}</span>
+              <a href={mailHref(siteConfig.email)} className="text-slate-600 hover:text-brand-green">Email: {siteConfig.email}</a>
             </div>
           </div>
         </div>

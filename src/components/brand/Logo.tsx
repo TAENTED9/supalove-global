@@ -5,9 +5,10 @@ interface LogoProps {
   className?: string
   iconOnly?: boolean
   size?: 'sm' | 'md' | 'lg'
+  showTagline?: boolean
 }
 
-export function Logo({ className = '', iconOnly = false, size = 'md' }: LogoProps) {
+export function Logo({ className = '', iconOnly = false, size = 'md', showTagline = false }: LogoProps) {
   const iconDimensions = {
     sm: { width: 32, height: 32, className: 'w-8 h-8' },
     md: { width: 40, height: 40, className: 'w-10 h-10' },
@@ -21,13 +22,14 @@ export function Logo({ className = '', iconOnly = false, size = 'md' }: LogoProp
   }
 
   const currentIcon = iconDimensions[size]
+  const tagline = process.env.NEXT_PUBLIC_TAGLINE || 'Export · Wholesale · Retail'
 
   return (
     <Link href="/" className={`inline-flex items-center gap-2.5 group select-none ${className}`}>
-      {/* Brand Icon using uploaded official artwork (transparent, works on light & dark) */}
+      {/* Brand Icon using logo-mark.png (icon only) */}
       <div className={`relative ${currentIcon.className} shrink-0 group-hover:scale-105 transition-transform duration-200 flex items-center justify-center`}>
         <Image
-          src="/logo.png"
+          src="/logo-mark.png"
           alt="Supalovefoods Logo"
           width={currentIcon.width}
           height={currentIcon.height}
@@ -50,9 +52,11 @@ export function Logo({ className = '', iconOnly = false, size = 'md' }: LogoProp
               foods
             </span>
           </div>
-          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-0.5 leading-none">
-            Import &middot; Export &middot; Retail
-          </span>
+          {showTagline && (
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-0.5 leading-none">
+              {tagline}
+            </span>
+          )}
         </div>
       )}
     </Link>

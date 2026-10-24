@@ -23,7 +23,9 @@ interface VariantFormItem {
   label: string
   unit: 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE'
   priceInNaira: number
+  compareAtPriceInNaira?: number
   stock: number
+  minOrderQty: number
   sku: string
 }
 
@@ -42,7 +44,9 @@ interface ProductRecord {
     label: string
     unit: 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE'
     price: number // in kobo
+    compareAtPrice?: number | null
     stock: number
+    minOrderQty: number
     sku: string
   }[]
 }
@@ -69,7 +73,7 @@ export default function AdminProductsPage() {
   const [isActive, setIsActive] = useState(true)
   const [isFeatured, setIsFeatured] = useState(false)
   const [variants, setVariants] = useState<VariantFormItem[]>([
-    { label: '50kg Bag', unit: 'BAG', priceInNaira: 52000, stock: 50, sku: 'RICE-50KG' },
+    { label: '50kg Bag', unit: 'BAG', priceInNaira: 52000, stock: 50, minOrderQty: 1, sku: 'RICE-50KG' },
   ])
 
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -109,7 +113,7 @@ export default function AdminProductsPage() {
     setIsActive(true)
     setIsFeatured(false)
     setVariants([
-      { label: 'Standard Pack', unit: 'KG', priceInNaira: 5000, stock: 100, sku: `PROD-${Date.now().toString().slice(-4)}` },
+      { label: 'Standard Pack', unit: 'KG', priceInNaira: 5000, stock: 100, minOrderQty: 1, sku: `PROD-${Date.now().toString().slice(-4)}` },
     ])
     setModalOpen(true)
   }
@@ -129,7 +133,9 @@ export default function AdminProductsPage() {
         label: v.label,
         unit: v.unit,
         priceInNaira: v.price / 100,
+        compareAtPriceInNaira: v.compareAtPrice ? v.compareAtPrice / 100 : undefined,
         stock: v.stock,
+        minOrderQty: v.minOrderQty || 1,
         sku: v.sku,
       }))
     )
@@ -174,6 +180,7 @@ export default function AdminProductsPage() {
         unit: 'KG',
         priceInNaira: 1000,
         stock: 50,
+        minOrderQty: 1,
         sku: `SKU-${Date.now().toString().slice(-4)}`,
       },
     ])
@@ -224,7 +231,9 @@ export default function AdminProductsPage() {
           label: v.label,
           unit: v.unit,
           price: Math.round(v.priceInNaira * 100), // convert to kobo
+          compareAtPrice: v.compareAtPriceInNaira ? Math.round(v.compareAtPriceInNaira * 100) : null,
           stock: Number(v.stock),
+          minOrderQty: Number(v.minOrderQty) || 1,
           sku: v.sku.trim().toUpperCase(),
         })),
       }
@@ -620,7 +629,7 @@ export default function AdminProductsPage() {
                   {variants.map((v, i) => (
                     <div
                       key={i}
-                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center"
+                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 grid grid-cols-1 sm:grid-cols-14 gap-2.5 items-center"
                     >
                       <div className="sm:col-span-3">
                         <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
@@ -653,9 +662,9 @@ export default function AdminProductsPage() {
                         </select>
                       </div>
 
-                      <div className="sm:col-span-3">
+                      <div className="sm:col-span-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
-                          Price (₦ Naira)
+                          Price (₦)
                         </label>
                         <input
                           type="number"
@@ -670,6 +679,20 @@ export default function AdminProductsPage() {
 
                       <div className="sm:col-span-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          Sale Price (₦)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={v.compareAtPriceInNaira || ''}
+                          onChange={(e) => handleVariantChange(i, 'compareAtPriceInNaira', e.target.value ? parseFloat(e.target.value) : undefined)}
+                          placeholder="60000"
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                           Stock
                         </label>
                         <input
@@ -679,6 +702,21 @@ export default function AdminProductsPage() {
                           value={v.stock}
                           onChange={(e) => handleVariantChange(i, 'stock', parseInt(e.target.value, 10) || 0)}
                           placeholder="50"
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          Min Qty
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          value={v.minOrderQty}
+                          onChange={(e) => handleVariantChange(i, 'minOrderQty', parseInt(e.target.value, 10) || 1)}
+                          placeholder="1"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
