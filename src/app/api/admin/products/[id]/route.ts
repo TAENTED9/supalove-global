@@ -1,33 +1,34 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditAdminAction } from '@/lib/audit'
+import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
 
 const updateVariantSchema = z.object({
-  id: z.string().optional(),
-  label: z.string().min(1),
+  id: z.string().max(128).optional(),
+  label: z.string().min(1).max(120),
   unit: z.enum(['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE']),
-  price: z.number().min(0),
-  stock: z.number().int().min(0),
-  sku: z.string().min(1),
+  price: z.number().min(0).max(100000000),
+  stock: z.number().int().min(0).max(500000),
+  sku: z.string().min(1).max(80),
 })
 
 const updateProductSchema = z.object({
-  name: z.string().min(2).optional(),
-  slug: z.string().optional(),
-  description: z.string().min(5).optional(),
-  categoryId: z.string().optional(),
-  images: z.array(z.string()).optional(),
+  name: z.string().min(2).max(160).optional(),
+  slug: z.string().max(160).optional(),
+  description: z.string().min(5).max(5000).optional(),
+  categoryId: z.string().max(128).optional(),
+  images: z.array(z.string().max(512)).optional(),
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
-  variants: z.array(updateVariantSchema).optional(),
+  variants: z.array(updateVariantSchema).max(20).optional(),
 })
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -49,8 +50,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -128,6 +129,18 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       })
     })
 
+    await auditAdminAction('product.update', params.id, {
+      changes: {
+        name,
+        slug,
+        description,
+        categoryId,
+        isActive,
+        isFeatured,
+        variantsCount: variants?.length || 0,
+      },
+    }, session.user?.email || 'admin')
+
     return NextResponse.json({ success: true, product: updated })
   } catch (err) {
     console.error('Update product error:', err)
@@ -137,14 +150,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     await prisma.product.delete({
       where: { id: params.id },
     })
+
+    await auditAdminAction('product.delete', params.id, {}, session.user?.email || 'admin')
 
     return NextResponse.json({ success: true, message: 'Product deleted' })
   } catch (err) {

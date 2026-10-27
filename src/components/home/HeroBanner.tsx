@@ -90,7 +90,7 @@ export function HeroBanner() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white border border-white/20 font-bold px-7 py-3.5 rounded-xl transition-all text-sm backdrop-blur-md active:scale-95"
           >
             <TrendingUp size={16} className="text-brand-orange" />
-            Wholesale &amp; Bulk Bags (50kg)
+            Wholesale &amp; Bulk Bags
           </Link>
         </div>
 

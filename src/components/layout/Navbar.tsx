@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import {
   Search,
   ShoppingBag,
   Menu,
   X,
-  ChevronDown,
   Globe,
   Truck,
   ShieldCheck,
@@ -20,30 +19,90 @@ import { useCartStore } from '@/store/cart'
 import { siteConfig, telHref } from '@/config/site'
 import { SearchModal } from '@/components/layout/SearchModal'
 
-const CATEGORIES = [
-  { name: 'All Categories', slug: '' },
-  { name: 'Grains & Rice', slug: 'grains-rice' },
-  { name: 'Beans & Legumes', slug: 'beans-legumes' },
-  { name: 'Flours & Garri', slug: 'flours-garri' },
-  { name: 'Oils', slug: 'oils' },
-  { name: 'Spices & Seasoning', slug: 'spices-seasoning' },
-  { name: 'Tubers & Others', slug: 'tubers-others' },
-]
+interface StoreCategory {
+  name: string
+  slug: string
+}
 
 export function Navbar() {
-  const router = useRouter()
+  const pathname = usePathname()
   const { totalItems, openDrawer } = useCartStore()
   const [mounted, setMounted] = useState(false)
   const [searchModalOpen, setSearchModalOpen] = useState(false)
   const [catDropdownOpen, setCatDropdownOpen] = useState(false)
-  const [selectedCat, setSelectedCat] = useState(CATEGORIES[0])
-  const [searchQuery, setSearchQuery] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [categories, setCategories] = useState<StoreCategory[]>([])
   const catRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
+
+  const closeSearchModal = useCallback(() => {
+    setSearchModalOpen(false)
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      window.requestAnimationFrame(() => mobileMenuButtonRef.current?.focus())
+    }
+  }, [])
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setCatDropdownOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    document.body.style.overflow = 'hidden'
+    const focusFrame = window.requestAnimationFrame(() => {
+      mobileMenuRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus()
+    })
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !mobileMenuRef.current) return
+      const focusable = mobileMenuRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])'
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (!first || !last) {
+        event.preventDefault()
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus()
+    }
+  }, [mobileMenuOpen])
+
+  useEffect(() => {
+    if ((!catDropdownOpen && !mobileMenuOpen) || categories.length > 0) return
+    fetch('/api/categories')
+      .then((response) => response.json())
+      .then((data: { categories?: StoreCategory[] }) => {
+        setCategories(Array.isArray(data.categories) ? data.categories : [])
+      })
+      .catch(() => setCategories([]))
+  }, [catDropdownOpen, categories.length, mobileMenuOpen])
 
   // Close category dropdown on outside click
   useEffect(() => {
@@ -52,8 +111,15 @@ export function Navbar() {
         setCatDropdownOpen(false)
       }
     }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCatDropdownOpen(false)
+    }
     document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleEscape)
+    }
   }, [])
 
   // Keyboard shortcut Ctrl+K or Cmd+K
@@ -67,20 +133,6 @@ export function Navbar() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) {
-      setSearchModalOpen(true)
-      return
-    }
-    const params = new URLSearchParams()
-    params.set('search', searchQuery.trim())
-    if (selectedCat.slug) {
-      params.set('category', selectedCat.slug)
-    }
-    router.push(`/products?${params.toString()}`)
-  }
 
   const itemCount = mounted ? totalItems() : 0
 
@@ -121,7 +173,7 @@ export function Navbar() {
       </div>
 
       {/* Main Sticky Navbar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all">
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-md transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-20 gap-4">
             {/* Left: Brand Logo */}
@@ -129,75 +181,46 @@ export function Navbar() {
               <Logo size="md" />
             </div>
 
-            {/* Center: Search Bar with Category Dropdown Pill (Campify style) */}
-            <div className="hidden lg:flex flex-1 max-w-2xl mx-2">
-              <form onSubmit={handleSearchSubmit} className="w-full">
-                <div className="flex items-center w-full h-11 bg-slate-50 border border-slate-200 hover:border-slate-300 focus-within:border-brand-green focus-within:ring-2 focus-within:ring-brand-green/10 rounded-full transition-all overflow-hidden p-1">
-                  {/* Category Pill Dropdown */}
-                  <div ref={catRef} className="relative shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setCatDropdownOpen(!catDropdownOpen)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 rounded-full border border-slate-200 transition-colors select-none"
-                    >
-                      <span className="max-w-[110px] truncate">{selectedCat.name}</span>
-                      <ChevronDown size={13} className="text-slate-400" />
-                    </button>
-
-                    {catDropdownOpen && (
-                      <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-slide-up">
-                        <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Categories
-                        </div>
-                        {CATEGORIES.map((cat) => (
-                          <button
-                            key={cat.slug}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCat(cat)
-                              setCatDropdownOpen(false)
-                            }}
-                            className={`w-full text-left px-3.5 py-2 text-xs transition-colors flex items-center justify-between ${
-                              selectedCat.slug === cat.slug
-                                ? 'bg-brand-green/10 text-brand-green font-bold'
-                                : 'text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            <span>{cat.name}</span>
-                            {selectedCat.slug === cat.slug && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-brand-green" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+            {/* Store search and live category menu */}
+            <div className="hidden max-w-2xl flex-1 items-center gap-2 lg:flex">
+              <div ref={catRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setCatDropdownOpen((open) => !open)}
+                  aria-expanded={catDropdownOpen}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:border-brand-green/40 hover:text-brand-green"
+                >
+                  <Menu size={15} /> Shop categories
+                </button>
+                {catDropdownOpen && (
+                  <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white py-2 shadow-xl animate-slide-up">
+                    <Link href="/products" className="block px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50" onClick={() => setCatDropdownOpen(false)}>
+                      All products
+                    </Link>
+                    {categories.map((category) => (
+                      <Link
+                        key={category.slug}
+                        href={`/products?category=${category.slug}`}
+                        onClick={() => setCatDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-slate-600 transition-colors hover:bg-brand-green/5 hover:text-brand-green"
+                      >
+                        {category.name}
+                      </Link>
+                    ))}
+                    {!categories.length && <p className="px-4 py-2 text-xs text-slate-500">Categories unavailable</p>}
                   </div>
-
-                  {/* Input */}
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setSearchModalOpen(true)}
-                    placeholder="Search premium rice, beans, pure palm oil, spices..."
-                    className="flex-1 bg-transparent px-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 outline-none"
-                  />
-
-                  {/* Keyboard shortcut hint */}
-                  <span className="hidden xl:inline-block text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md mr-2">
-                    ⌘K
-                  </span>
-
-                  {/* Search Button */}
-                  <button
-                    type="submit"
-                    aria-label="Search"
-                    className="w-9 h-9 rounded-full bg-brand-green hover:bg-brand-green-hover text-white flex items-center justify-center shrink-0 transition-all shadow-sm"
-                  >
-                    <Search size={15} />
-                  </button>
-                </div>
-              </form>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSearchModalOpen(true)}
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-500 transition-colors hover:border-brand-green/40 hover:bg-white"
+                aria-label="Search products"
+              >
+                <Search size={17} className="shrink-0 text-brand-green" />
+                <span className="flex-1 truncate">Search foodstuffs, brands, or pantry essentials</span>
+                <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 xl:inline">Ctrl K</kbd>
+              </button>
             </div>
 
             {/* Right: Navigation Links & Cart Button */}
@@ -269,8 +292,11 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                ref={mobileMenuButtonRef}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-store-menu"
                 className="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                aria-label="Toggle mobile menu"
+                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               >
                 {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
@@ -280,27 +306,40 @@ export function Navbar() {
 
         {/* Mobile Navigation Drawer / Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 pt-3 pb-6 space-y-4 animate-slide-up shadow-lg">
-            <form onSubmit={handleSearchSubmit} className="pt-1">
-              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 gap-2">
-                <Search size={16} className="text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search foodstuffs, grains, oils..."
-                  className="bg-transparent text-xs text-slate-800 outline-none w-full"
-                />
-                <button
-                  type="submit"
-                  className="bg-brand-green text-white text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                >
-                  Go
+          <div className="fixed inset-0 z-50 md:hidden">
+            <button
+              type="button"
+              aria-label="Close navigation menu"
+              onClick={() => setMobileMenuOpen(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            />
+            <div
+              ref={mobileMenuRef}
+              id="mobile-store-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Store navigation"
+              tabIndex={-1}
+              className="absolute inset-y-0 right-0 flex w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white px-5 pb-8 pt-5 shadow-2xl animate-slide-up"
+            >
+              <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
+                <span className="text-sm font-bold text-slate-900">Shop Supalove</span>
+                <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+                  <X size={20} />
                 </button>
               </div>
-            </form>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  setSearchModalOpen(true)
+                }}
+                className="mb-5 flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-500"
+              >
+                <Search size={17} className="text-brand-green" /> Search products
+              </button>
 
-            <nav className="flex flex-col space-y-2 text-sm font-semibold text-slate-700">
+              <nav className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
               <Link
                 href="/"
                 onClick={() => setMobileMenuOpen(false)}
@@ -311,10 +350,23 @@ export function Navbar() {
               <Link
                 href="/products"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+                className="rounded-lg px-3 py-3 hover:bg-slate-50 transition-colors"
               >
                 All Products
               </Link>
+              <div className="my-2 border-t border-slate-100 pt-3">
+                <p className="px-3 pb-2 text-[10px] font-bold uppercase text-slate-400">Categories</p>
+                {categories.map((category) => (
+                  <Link
+                    key={category.slug}
+                    href={`/products?category=${category.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-brand-green/5 hover:text-brand-green"
+                  >
+                    {category.name}
+                  </Link>
+                ))}
+              </div>
               <Link
                 href="/products?unit=BAG"
                 onClick={() => setMobileMenuOpen(false)}
@@ -347,14 +399,15 @@ export function Navbar() {
               >
                 Admin Portal
               </Link>
-            </nav>
+              </nav>
 
             {/* Quick Contact In Mobile Menu */}
-            <div className="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-500">
+              <div className="mt-auto flex items-center gap-3 border-t border-slate-100 pt-5 text-xs text-slate-500">
               <PhoneCall size={14} className="text-brand-green" />
               <a href={telHref()} className="hover:text-brand-green transition-colors">
                 Customer Inquiries: {siteConfig.phoneIntl || siteConfig.phone}
               </a>
+            </div>
             </div>
           </div>
         )}
@@ -363,7 +416,7 @@ export function Navbar() {
       {/* Global Search Modal */}
       <SearchModal
         isOpen={searchModalOpen}
-        onClose={() => setSearchModalOpen(false)}
+        onClose={closeSearchModal}
       />
     </>
   )

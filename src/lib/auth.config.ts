@@ -27,5 +27,20 @@ export const authConfig: NextAuthConfig = {
     },
   },
   providers: [],
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    maxAge: 8 * 60 * 60,
+  },
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+      },
+    },
+  },
+  trustHost: true,
 }

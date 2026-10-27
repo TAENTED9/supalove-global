@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 
 const lookupSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').max(255),
 })
 
 export async function POST(
@@ -11,13 +11,13 @@ export async function POST(
   { params }: { params: { reference: string } }
 ) {
   try {
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const parsed = lookupSchema.safeParse(body)
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Invalid email address' },
-        { status: 400 }
+        { success: false, error: 'Unable to look up order.' },
+        { status: 404 }
       )
     }
 
@@ -29,18 +29,10 @@ export async function POST(
       include: { items: true },
     })
 
-    if (!order) {
+    if (!order || order.email.toLowerCase() !== email.toLowerCase()) {
       return NextResponse.json(
-        { success: false, error: 'Order not found' },
+        { success: false, error: 'Unable to look up order.' },
         { status: 404 }
-      )
-    }
-
-    // Verify email matches (case-insensitive)
-    if (order.email.toLowerCase() !== email.toLowerCase()) {
-      return NextResponse.json(
-        { success: false, error: 'Email does not match order record' },
-        { status: 403 }
       )
     }
 
@@ -70,8 +62,8 @@ export async function POST(
   } catch (error) {
     console.error('Order lookup error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to lookup order' },
-      { status: 500 }
+      { success: false, error: 'Unable to look up order.' },
+      { status: 404 }
     )
   }
 }

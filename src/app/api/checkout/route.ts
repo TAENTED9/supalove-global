@@ -2,30 +2,31 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { generateReference } from '@/lib/utils'
-import { checkRateLimit } from '@/lib/rateLimit'
+import { checkRateLimit, getIdempotencyRecord, setIdempotencyRecord } from '@/lib/rateLimit'
 import { siteConfig } from '@/config/site'
 
 const checkoutSchema = z.object({
-  customerName: z.string().min(2, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone number is required'),
-  address: z.string().min(5, 'Address is required'),
-  city: z.string().min(2, 'City is required'),
-  state: z.string().min(2, 'State is required'),
+  customerName: z.string().min(2, 'Name is required').max(120),
+  email: z.string().email('Invalid email address').max(255),
+  phone: z.string().min(10, 'Phone number is required').max(30),
+  address: z.string().min(5, 'Address is required').max(500),
+  city: z.string().min(2, 'City is required').max(80),
+  state: z.string().min(2, 'State is required').max(80),
+  idempotencyKey: z.string().min(8).max(128).optional(),
   items: z.array(
     z.object({
-      productId: z.string(),
-      variantId: z.string(),
-      qty: z.number().int().min(1),
+      productId: z.string().max(128),
+      variantId: z.string().max(128),
+      qty: z.number().int().min(1).max(50),
     })
-  ).min(1, 'Cart cannot be empty'),
+  ).min(1, 'Cart cannot be empty').max(50),
 })
 
 export async function POST(req: Request) {
   try {
-    // Rate limiting: 5 requests per 15 minutes per IP
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
     const rateLimit = checkRateLimit(`checkout:${ip}`, 5, 15 * 60 * 1000)
+
     if (!rateLimit.success) {
       return NextResponse.json(
         { success: false, error: 'Too many checkout attempts. Please try again later.' },
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const parsed = checkoutSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -43,9 +44,16 @@ export async function POST(req: Request) {
       )
     }
 
-    const { customerName, email, phone, address, city, state, items } = parsed.data
+    const { customerName, email, phone, address, city, state, items, idempotencyKey } = parsed.data
+    const activeKey = idempotencyKey || req.headers.get('x-idempotency-key') || undefined
 
-    // Validate Flutterwave credentials
+    if (activeKey) {
+      const duplicate = getIdempotencyRecord(activeKey)
+      if (duplicate) {
+        return NextResponse.json({ success: true, paymentUrl: duplicate.paymentUrl, txRef: duplicate.reference, duplicate: true })
+      }
+    }
+
     const flwSecretKey = process.env.FLW_SECRET_KEY
     const flwPublicKey = process.env.FLW_PUBLIC_KEY
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -57,7 +65,6 @@ export async function POST(req: Request) {
       )
     }
 
-    // Re-price items from DB and compute total server-side
     let subtotal = 0
     const orderItems: {
       productId: string
@@ -81,7 +88,15 @@ export async function POST(req: Request) {
 
       if (!variant || !variant.product.isActive) {
         return NextResponse.json(
-          { success: false, error: `Product or variant not found: ${item.variantId}` },
+          { success: false, error: 'Unable to continue with checkout.' },
+          { status: 400 }
+        )
+      }
+
+      const maxAllowedQty = Math.min(variant.stock, 50)
+      if (item.qty > maxAllowedQty) {
+        return NextResponse.json(
+          { success: false, error: `Quantity exceeds available stock for ${variant.product.name}.` },
           { status: 400 }
         )
       }
@@ -89,19 +104,11 @@ export async function POST(req: Request) {
       const minOrder = variant.minOrderQty || 1
       if (item.qty < minOrder) {
         return NextResponse.json(
-          { success: false, error: `Minimum order quantity for ${variant.product.name} (${variant.label}) is ${minOrder}` },
+          { success: false, error: `Minimum order quantity for ${variant.product.name} (${variant.label}) is ${minOrder}.` },
           { status: 400 }
         )
       }
 
-      if (variant.stock < item.qty) {
-        return NextResponse.json(
-          { success: false, error: `Insufficient stock for ${variant.product.name} (${variant.label})` },
-          { status: 400 }
-        )
-      }
-
-      // Re-price using best matching wholesale tier for quantity
       let unitPrice = variant.price
       if (variant.priceTiers && variant.priceTiers.length > 0) {
         const matchingTier = variant.priceTiers.find((t) => item.qty >= t.minQty)
@@ -123,22 +130,14 @@ export async function POST(req: Request) {
       })
     }
 
-    // Delivery fee by state (Lagos vs other states)
     const isLagos = state.trim().toLowerCase() === 'lagos'
     const settingKey = isLagos ? 'delivery_fee_lagos' : 'delivery_fee_other'
-    const deliveryFeeSetting = (await prisma.setting.findUnique({
-      where: { key: settingKey },
-    })) || (await prisma.setting.findUnique({
-      where: { key: 'delivery_fee_default' },
-    }))
+    const deliveryFeeSetting = (await prisma.setting.findUnique({ where: { key: settingKey } })) || (await prisma.setting.findUnique({ where: { key: 'delivery_fee_default' } }))
     const defaultFee = isLagos ? 150000 : 350000
-    const deliveryFee = deliveryFeeSetting ? parseInt(deliveryFeeSetting.value, 10) : defaultFee
+    const deliveryFee = deliveryFeeSetting ? Number.parseInt(deliveryFeeSetting.value, 10) : defaultFee
     const total = subtotal + deliveryFee
 
-    // Generate unique transaction reference
     const txRef = generateReference()
-
-    // Create order with PENDING status
     const order = await prisma.order.create({
       data: {
         reference: txRef,
@@ -158,7 +157,6 @@ export async function POST(req: Request) {
       },
     })
 
-    // Call Flutterwave API
     const flwResponse = await fetch('https://api.flutterwave.com/v3/payments', {
       method: 'POST',
       headers: {
@@ -167,7 +165,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         tx_ref: txRef,
-        amount: total / 100, // Convert from kobo to Naira
+        amount: total / 100,
         currency: 'NGN',
         redirect_url: `${appUrl}/checkout/success`,
         customer: {
@@ -195,6 +193,10 @@ export async function POST(req: Request) {
         { success: false, error: 'Failed to initialize payment' },
         { status: 500 }
       )
+    }
+
+    if (activeKey) {
+      setIdempotencyRecord(activeKey, txRef, flwData.data.link)
     }
 
     return NextResponse.json({

@@ -3,6 +3,7 @@ import '@fontsource/plus-jakarta-sans'
 import './globals.css'
 import { StorefrontShell } from '@/components/layout/StorefrontShell'
 import { ClientProviders } from '@/components/providers/ClientProviders'
+import { CookieNotice } from '@/components/layout/CookieNotice'
 import { siteConfig } from '@/config/site'
 
 export const metadata: Metadata = {
@@ -71,6 +72,7 @@ export default function RootLayout({
         <ClientProviders>
           <StorefrontShell>{children}</StorefrontShell>
         </ClientProviders>
+        <CookieNotice />
       </body>
     </html>
   )

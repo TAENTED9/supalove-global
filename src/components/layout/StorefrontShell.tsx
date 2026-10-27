@@ -18,7 +18,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />
-      <main className="flex-1 pb-[70px] md:pb-0">{children}</main>
+      <main className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">{children}</main>
       <Footer />
       <BottomNav />
 

@@ -45,6 +45,7 @@ export interface ProductFilterParams {
   search?: string
   minPrice?: number // in Naira
   maxPrice?: number // in Naira
+  inStock?: boolean
   sort?: string // 'price_asc' | 'price_desc' | 'newest' | 'featured'
   page?: number
   limit?: number
@@ -444,7 +445,7 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
   totalPages: number
   currentPage: number
 }> {
-  const { category, unit, search, minPrice, maxPrice, sort, page = 1, limit = 12 } = params
+  const { category, unit, search, minPrice, maxPrice, inStock, sort, page = 1, limit = 12 } = params
 
   try {
     // Build Prisma query where clause
@@ -463,10 +464,11 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
       ]
     }
 
-    if (unit) {
+    if (unit || inStock) {
       whereClause.variants = {
         some: {
-          unit: unit,
+          ...(unit ? { unit } : {}),
+          ...(inStock ? { stock: { gt: 0 } } : {}),
         },
       }
     }
@@ -555,6 +557,10 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
 
   if (unit) {
     filtered = filtered.filter((p) => p.variants.some((v) => v.unit === unit))
+  }
+
+  if (inStock) {
+    filtered = filtered.filter((p) => p.variants.some((v) => v.stock > 0 && (!unit || v.unit === unit)))
   }
 
   if (search) {

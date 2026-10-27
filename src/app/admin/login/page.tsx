@@ -77,7 +77,7 @@ export default function AdminLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'supaloveglobal@gmail.com'}
+                  placeholder="admin@example.com"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/10"
                 />
               </div>
@@ -124,12 +124,9 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          {/* Admin Credentials Info */}
           <div className="mt-8 pt-5 border-t border-slate-100 bg-slate-50/70 p-3.5 rounded-2xl text-[11px] text-slate-500">
-            <span className="font-bold text-slate-700 block mb-0.5">Admin Credentials:</span>
-            <span>Email: <code className="font-bold text-slate-800">{process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'supaloveglobal@gmail.com'}</code></span>
-            <br />
-            <span>Password: Set in <code className="font-bold text-slate-800">.env</code> file</span>
+            <span className="font-bold text-slate-700 block mb-0.5">Admin access</span>
+            <span>Use the protected administrator credentials configured in the server environment.</span>
           </div>
         </div>
       </div>

@@ -4,7 +4,14 @@ interface RateLimitEntry {
   resetAt: number
 }
 
+interface IdempotencyEntry {
+  reference: string
+  paymentUrl: string
+  expiresAt: number
+}
+
 const rateLimitMap = new Map<string, RateLimitEntry>()
+const idempotencyMap = new Map<string, IdempotencyEntry>()
 
 export function checkRateLimit(
   key: string,
@@ -14,7 +21,6 @@ export function checkRateLimit(
   const now = Date.now()
   const entry = rateLimitMap.get(key)
 
-  // Clean expired entry
   if (entry && now > entry.resetAt) {
     rateLimitMap.delete(key)
   }
@@ -32,4 +38,18 @@ export function checkRateLimit(
 
   current.count += 1
   return { success: true, remaining: limit - current.count, resetAt: current.resetAt }
+}
+
+export function getIdempotencyRecord(key: string) {
+  const entry = idempotencyMap.get(key)
+  if (!entry) return null
+  if (Date.now() > entry.expiresAt) {
+    idempotencyMap.delete(key)
+    return null
+  }
+  return entry
+}
+
+export function setIdempotencyRecord(key: string, reference: string, paymentUrl: string, ttlMs = 60 * 60 * 1000) {
+  idempotencyMap.set(key, { reference, paymentUrl, expiresAt: Date.now() + ttlMs })
 }

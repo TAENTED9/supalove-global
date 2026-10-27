@@ -114,6 +114,15 @@ model Setting {
   value String
 }
 
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  target    String?
+  metadata  String   @db.Text
+  createdAt DateTime @default(now())
+}
+
 model PriceTier {
   id        String  @id @default(cuid())
   variantId String

@@ -21,6 +21,7 @@ export function ProductCatalogHeader({ totalCount }: ProductCatalogHeaderProps) 
   const currentSort = searchParams.get('sort') || 'featured'
   const currentCategory = searchParams.get('category')
   const currentUnit = searchParams.get('unit')
+  const currentInStock = searchParams.get('inStock') === 'true'
   const currentSearch = searchParams.get('search')
   const currentMin = searchParams.get('minPrice')
   const currentMax = searchParams.get('maxPrice')
@@ -39,7 +40,7 @@ export function ProductCatalogHeader({ totalCount }: ProductCatalogHeaderProps) 
   }
 
   const hasAnyFilter = Boolean(
-    currentCategory || currentUnit || currentSearch || currentMin || currentMax
+    currentCategory || currentUnit || currentInStock || currentSearch || currentMin || currentMax
   )
 
   return (
@@ -103,6 +104,17 @@ export function ProductCatalogHeader({ totalCount }: ProductCatalogHeaderProps) 
               className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-orange/15 text-amber-800 text-xs font-bold rounded-full hover:bg-brand-orange/25 transition-colors"
             >
               <span>Unit: {currentUnit}</span>
+              <X size={12} />
+            </button>
+          )}
+
+          {currentInStock && (
+            <button
+              type="button"
+              onClick={() => removeFilter('inStock')}
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-green/10 px-3 py-1 text-xs font-bold text-brand-green transition-colors hover:bg-brand-green/20"
+            >
+              <span>In stock</span>
               <X size={12} />
             </button>
           )}

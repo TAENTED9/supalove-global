@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditAdminAction } from '@/lib/audit'
+import { requireAdmin } from '@/lib/security'
 
 const updateOrderSchema = z.object({
   status: z.enum(['PENDING', 'PAID', 'FAILED', 'PROCESSING', 'DELIVERED', 'CANCELLED']),
@@ -12,8 +13,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -38,8 +39,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -60,6 +61,11 @@ export async function PUT(
       data: { status },
       include: { items: true },
     })
+
+    await auditAdminAction('order.status_update', updated.id, {
+      status,
+      reference: updated.reference,
+    }, session.user?.email || 'admin')
 
     return NextResponse.json({ success: true, order: updated })
   } catch (err) {

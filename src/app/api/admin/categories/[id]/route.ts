@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditAdminAction } from '@/lib/audit'
+import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
 
 const updateCategorySchema = z.object({
@@ -12,8 +13,8 @@ const updateCategorySchema = z.object({
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -42,6 +43,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       data: dataToUpdate,
     })
 
+    await auditAdminAction('category.update', updated.id, {
+      changes: dataToUpdate,
+    }, session.user?.email || 'admin')
+
     return NextResponse.json({ success: true, category: updated })
   } catch (err) {
     console.error('Update category error:', err)
@@ -51,8 +56,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -74,6 +79,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     await prisma.category.delete({
       where: { id: params.id },
     })
+
+    await auditAdminAction('category.delete', params.id, {
+      productCount,
+    }, session.user?.email || 'admin')
 
     return NextResponse.json({ success: true, message: 'Category deleted' })
   } catch (err) {

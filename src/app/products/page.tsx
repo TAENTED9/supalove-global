@@ -11,6 +11,7 @@ interface ProductsPageProps {
   searchParams: {
     category?: string
     unit?: string
+    inStock?: string
     search?: string
     minPrice?: string
     maxPrice?: string
@@ -49,6 +50,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     getProducts({
       category: searchParams.category,
       unit: searchParams.unit,
+      inStock: searchParams.inStock === 'true',
       search: searchParams.search,
       minPrice,
       maxPrice,

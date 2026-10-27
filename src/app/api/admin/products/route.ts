@@ -1,33 +1,34 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditAdminAction } from '@/lib/audit'
+import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
 
 const variantSchema = z.object({
-  id: z.string().optional(),
-  label: z.string().min(1, 'Variant label required'),
+  id: z.string().max(128).optional(),
+  label: z.string().min(1, 'Variant label required').max(120),
   unit: z.enum(['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE']),
-  price: z.number().min(0, 'Price must be positive'), // expects in kobo
-  stock: z.number().int().min(0, 'Stock cannot be negative'),
-  sku: z.string().min(1, 'SKU required'),
+  price: z.number().min(0, 'Price must be positive').max(100000000),
+  stock: z.number().int().min(0, 'Stock cannot be negative').max(500000),
+  sku: z.string().min(1, 'SKU required').max(80),
 })
 
 const createProductSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  slug: z.string().optional(),
-  description: z.string().min(5, 'Description required'),
-  categoryId: z.string().min(1, 'Category is required'),
-  images: z.array(z.string()).default([]),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(160),
+  slug: z.string().max(160).optional(),
+  description: z.string().min(5, 'Description required').max(5000),
+  categoryId: z.string().min(1, 'Category is required').max(128),
+  images: z.array(z.string().max(512)).default([]),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
-  variants: z.array(variantSchema).min(1, 'At least one variant is required'),
+  variants: z.array(variantSchema).min(1, 'At least one variant is required').max(20),
 })
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -50,8 +51,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
             productId: product.id,
             label: v.label,
             unit: v.unit,
-            price: Math.round(v.price), // in kobo
+            price: Math.round(v.price),
             stock: v.stock,
             sku: v.sku.trim().toUpperCase(),
           },
@@ -106,6 +107,12 @@ export async function POST(req: Request) {
         include: { category: true, variants: true },
       })
     })
+
+    await auditAdminAction('product.create', newProduct?.id || slug, {
+      slug,
+      categoryId,
+      variantCount: variants.length,
+    }, session.user?.email || 'admin')
 
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 })
   } catch (err) {

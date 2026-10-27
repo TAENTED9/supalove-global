@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditAdminAction } from '@/lib/audit'
+import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
 
 const categorySchema = z.object({
@@ -12,8 +13,8 @@ const categorySchema = z.object({
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -35,8 +36,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
-    if (!session || (session.user as { role?: string })?.role !== 'ADMIN') {
+    const session = await requireAdmin()
+    if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -67,6 +68,12 @@ export async function POST(req: Request) {
         image: image || null,
       },
     })
+
+    await auditAdminAction('category.create', category.id, {
+      name,
+      slug,
+      image: image || null,
+    }, session.user?.email || 'admin')
 
     return NextResponse.json({ success: true, category }, { status: 201 })
   } catch (err) {

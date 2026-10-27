@@ -55,10 +55,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur-md md:hidden"
       aria-label="Mobile Navigation"
     >
-      <div className="grid grid-cols-5 h-16 max-w-lg mx-auto px-1 items-center">
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-1">
         {navItems.map((item) => {
           const Icon = item.icon
           const content = (
@@ -72,7 +72,7 @@ export function BottomNav() {
                 />
                 {item.badge !== undefined && item.badge > 0 && (
                   <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 bg-brand-orange text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none shadow-sm">
-                    {item.badge}
+                      {item.badge > 9 ? '9+' : item.badge}
                   </span>
                 )}
               </div>
