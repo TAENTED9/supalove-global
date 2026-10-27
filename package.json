@@ -42,7 +42,7 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.3.0",
     "zod": "^3.24.3",
-    "zustand": "^5.0.4"
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
