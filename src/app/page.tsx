@@ -1,46 +1,66 @@
 import { HeroBanner } from '@/components/home/HeroBanner'
 import { CategoryStrip } from '@/components/home/CategoryStrip'
 import { FeaturedSection } from '@/components/home/FeaturedSection'
+import { NewArrivalsSection } from '@/components/home/NewArrivalsSection'
+import { SeasonalOffersSection } from '@/components/home/SeasonalOffersSection'
 import { ShopByUnit } from '@/components/home/ShopByUnit'
+import { WholesaleCtaBand } from '@/components/home/WholesaleCtaBand'
 import { WhyChooseUs } from '@/components/home/WhyChooseUs'
-import { ExportCtaBanner } from '@/components/home/ExportCtaBanner'
-import { Testimonials } from '@/components/home/Testimonials'
-import { NewsletterSection } from '@/components/home/NewsletterSection'
-import { getCategories, getFeaturedProducts } from '@/lib/data'
+import { DeliveryPaymentInfo } from '@/components/home/DeliveryPaymentInfo'
+import { FaqAccordion } from '@/components/home/FaqAccordion'
+import { FinalCtaSection } from '@/components/home/FinalCtaSection'
+import {
+  getCategories,
+  getFeaturedProducts,
+  getNewArrivals,
+  getSeasonalOffers,
+} from '@/lib/data'
 
 export const revalidate = 60
 
 export default async function HomePage() {
-  const [categories, featuredProducts] = await Promise.all([
-    getCategories(),
-    getFeaturedProducts(),
-  ])
+  const [categories, featuredProducts, newArrivals, seasonalOffers] =
+    await Promise.all([
+      getCategories(),
+      getFeaturedProducts(),
+      getNewArrivals(),
+      getSeasonalOffers(),
+    ])
 
   return (
     <div className="flex flex-col w-full">
-      {/* 1. Hero Banner with CTA & Inline Search */}
+      {/* 1. Hero: compact, one CTA + trust chips */}
       <HeroBanner />
 
-      {/* 2. Category Strip (Grains, Oils, Beans, Roots, Spices, Beverages) */}
+      {/* 2. Category chips strip: horizontal scroll on mobile */}
       <CategoryStrip categories={categories} />
 
-      {/* 3. Featured Products Grid */}
+      {/* 3. Featured / Best Sellers */}
       <FeaturedSection products={featuredProducts} />
 
-      {/* 4. Shop by Unit (Bags, Kilograms, Litres, Cartons) */}
+      {/* 4. New Arrivals */}
+      <NewArrivalsSection products={newArrivals} />
+
+      {/* 5. Seasonal Offers (orange, optional countdown) */}
+      <SeasonalOffersSection products={seasonalOffers} />
+
+      {/* 6. Shop by Unit (Bags / Kg / Litres) */}
       <ShopByUnit />
 
-      {/* 5. Why Choose Us (Quality, Export, Delivery) */}
+      {/* 7. Wholesale CTA band */}
+      <WholesaleCtaBand />
+
+      {/* 8. Why Choose Us */}
       <WhyChooseUs />
 
-      {/* 6. B2B / Export Commercial Container Banner */}
-      <ExportCtaBanner />
+      {/* 9. Delivery & Payment info */}
+      <DeliveryPaymentInfo />
 
-      {/* 7. Customer Testimonials */}
-      <Testimonials />
+      {/* 10. FAQ accordion */}
+      <FaqAccordion />
 
-      {/* 8. Newsletter Subscription */}
-      <NewsletterSection />
+      {/* 11. Final CTA */}
+      <FinalCtaSection />
     </div>
   )
 }

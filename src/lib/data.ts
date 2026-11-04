@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
+import { parseProductSpecs, productSpecsSettingKey, type ProductSpecs } from '@/lib/product-specs'
 
 export interface CategoryItem {
   id: string
@@ -36,6 +38,7 @@ export interface ProductItem {
   images: string[]
   isActive: boolean
   isFeatured: boolean
+  specifications?: ProductSpecs
   variants: VariantItem[]
 }
 
@@ -369,7 +372,7 @@ export const ALL_PRODUCTS: ProductItem[] = [
   },
 ]
 
-export async function getCategories(): Promise<CategoryItem[]> {
+async function fetchCategories(): Promise<CategoryItem[]> {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { name: 'asc' },
@@ -388,7 +391,13 @@ export async function getCategories(): Promise<CategoryItem[]> {
   return FALLBACK_CATEGORIES
 }
 
-export async function getFeaturedProducts(): Promise<ProductItem[]> {
+export const getCategories = unstable_cache(
+  fetchCategories,
+  ['categories'],
+  { tags: ['categories'], revalidate: 60 }
+)
+
+async function fetchFeaturedProducts(): Promise<ProductItem[]> {
   try {
     const products = await prisma.product.findMany({
       where: { isActive: true, isFeatured: true },
@@ -438,6 +447,147 @@ export async function getFeaturedProducts(): Promise<ProductItem[]> {
   }
   return ALL_PRODUCTS.filter((p) => p.isFeatured)
 }
+
+export const getFeaturedProducts = unstable_cache(
+  fetchFeaturedProducts,
+  ['featured-products'],
+  { tags: ['products'], revalidate: 60 }
+)
+
+async function fetchNewArrivals(): Promise<ProductItem[]> {
+  try {
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        category: true,
+        variants: {
+          orderBy: { price: 'asc' },
+          include: {
+            priceTiers: {
+              orderBy: { minQty: 'asc' },
+            },
+          },
+        },
+      },
+      take: 5,
+    })
+    if (products && products.length > 0) {
+      return products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        description: p.description,
+        categoryId: p.categoryId,
+        category: p.category,
+        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
+        isActive: p.isActive,
+        isFeatured: p.isFeatured,
+        variants: p.variants.map((v) => ({
+          id: v.id,
+          label: v.label,
+          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
+          price: v.price,
+          compareAtPrice: v.compareAtPrice,
+          stock: v.stock,
+          minOrderQty: v.minOrderQty,
+          sku: v.sku,
+          priceTiers: v.priceTiers?.map((t) => ({
+            id: t.id,
+            minQty: t.minQty,
+            price: t.price,
+          })),
+        })),
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load new arrivals from the database; using fallback data.', error)
+  }
+  return ALL_PRODUCTS.slice(4, 9)
+}
+
+export const getNewArrivals = unstable_cache(
+  fetchNewArrivals,
+  ['new-arrivals'],
+  { tags: ['products'], revalidate: 60 }
+)
+
+async function fetchSeasonalOffers(): Promise<ProductItem[]> {
+  try {
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        variants: {
+          some: {
+            compareAtPrice: { not: null },
+          },
+        },
+      },
+      include: {
+        category: true,
+        variants: {
+          orderBy: { price: 'asc' },
+          include: {
+            priceTiers: {
+              orderBy: { minQty: 'asc' },
+            },
+          },
+        },
+      },
+      take: 5,
+    })
+    if (products && products.length > 0) {
+      return products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        description: p.description,
+        categoryId: p.categoryId,
+        category: p.category,
+        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
+        isActive: p.isActive,
+        isFeatured: p.isFeatured,
+        variants: p.variants.map((v) => ({
+          id: v.id,
+          label: v.label,
+          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
+          price: v.price,
+          compareAtPrice: v.compareAtPrice,
+          stock: v.stock,
+          minOrderQty: v.minOrderQty,
+          sku: v.sku,
+          priceTiers: v.priceTiers?.map((t) => ({
+            id: t.id,
+            minQty: t.minQty,
+            price: t.price,
+          })),
+        })),
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load seasonal offers from the database; using fallback data.', error)
+  }
+  // Return items that have compareAtPrice or fallback first 5 items with mock discount
+  const discounted = ALL_PRODUCTS.filter((p) =>
+    p.variants.some((v) => v.compareAtPrice && v.compareAtPrice > v.price)
+  )
+  if (discounted.length > 0) return discounted.slice(0, 5)
+  // Give first 4 fallback products a compareAtPrice so seasonal offer displays properly
+  return ALL_PRODUCTS.slice(0, 4).map((p) => ({
+    ...p,
+    variants: p.variants.map((v, i) =>
+      i === 0
+        ? { ...v, compareAtPrice: Math.round(v.price * 1.15) }
+        : v
+    ),
+  }))
+}
+
+export const getSeasonalOffers = unstable_cache(
+  fetchSeasonalOffers,
+  ['seasonal-offers'],
+  { tags: ['products'], revalidate: 60 }
+)
 
 export async function getProducts(params: ProductFilterParams = {}): Promise<{
   products: ProductItem[]
@@ -598,7 +748,7 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
   }
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductItem | null> {
+async function fetchProductBySlug(slug: string): Promise<ProductItem | null> {
   try {
     const product = await prisma.product.findUnique({
       where: { slug },
@@ -616,6 +766,11 @@ export async function getProductBySlug(slug: string): Promise<ProductItem | null
     })
 
     if (product) {
+      const specificationRecord = await prisma.setting.findUnique({
+        where: { key: productSpecsSettingKey(product.id) },
+        select: { value: true },
+      })
+
       return {
         id: product.id,
         name: product.name,
@@ -626,6 +781,7 @@ export async function getProductBySlug(slug: string): Promise<ProductItem | null
         images: product.images.length > 0 ? product.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
         isActive: product.isActive,
         isFeatured: product.isFeatured,
+        specifications: parseProductSpecs(specificationRecord?.value),
         variants: product.variants.map((v) => ({
           id: v.id,
           label: v.label,
@@ -649,6 +805,15 @@ export async function getProductBySlug(slug: string): Promise<ProductItem | null
 
   const found = ALL_PRODUCTS.find((p) => p.slug === slug)
   return found || null
+}
+
+export async function getProductBySlug(slug: string): Promise<ProductItem | null> {
+  const getCached = unstable_cache(
+    () => fetchProductBySlug(slug),
+    ['product-detail', slug],
+    { tags: ['products', `product:${slug}`], revalidate: 60 }
+  )
+  return getCached()
 }
 
 export async function getRelatedProducts(currentId: string, categoryId: string): Promise<ProductItem[]> {

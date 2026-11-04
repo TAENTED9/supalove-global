@@ -1,4 +1,5 @@
 import { ShieldCheck, Truck, Factory, Globe2, Sparkles, Award } from 'lucide-react'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 
 const PILLARS = [
   {
@@ -41,19 +42,9 @@ const PILLARS = [
 
 export function WhyChooseUs() {
   return (
-    <section className="py-16 sm:py-24 bg-white border-y border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-bold uppercase tracking-widest text-brand-green">
-            The Supalovefoods Quality Standard
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-1.5">
-            Why Food Buyers &amp; Diaspora Buyers Trust Us
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-2.5 leading-relaxed">
-            We bridge the gap between rural Nigerian farmland and commercial dining tables worldwide, combining traditional agricultural authenticity with modern hygiene standards.
-          </p>
-        </div>
+    <section className="py-8 sm:py-10 bg-white border-y border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 xl:px-0">
+        <SectionHeader title="Why Choose Us" href="/products" />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {PILLARS.map((item) => {

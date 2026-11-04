@@ -3,25 +3,67 @@
 @tailwind utilities;
 
 @layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-white text-slate-900 antialiased;
+    @apply bg-gray-50 text-gray-900 antialiased;
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
+
   :root {
     --brand-green: #2FA84F;
     --brand-orange: #FBAE3C;
   }
+
+  /* Safe-area padding for bottom nav */
+  main {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  img { display: block; }
+
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+
+  /* Smooth focus rings */
+  :focus-visible {
+    outline: 2px solid #2FA84F;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.2s ease-out;
+  /* Hide scrollbars while keeping scroll */
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* 2-line text clamp */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .animate-slide-up {
-    animation: slideUp 0.3s ease-out;
+
+  /* 1-line clamp */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
+
+  /* Safe-area padding utilities */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
 }
 
+/* Legacy animation keyframes (kept for backward compat) */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

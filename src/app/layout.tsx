@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
-import '@fontsource/plus-jakarta-sans'
+import '@fontsource/plus-jakarta-sans/400.css'
+import '@fontsource/plus-jakarta-sans/500.css'
+import '@fontsource/plus-jakarta-sans/600.css'
+import '@fontsource/plus-jakarta-sans/700.css'
+import '@fontsource/plus-jakarta-sans/800.css'
 import './globals.css'
 import { StorefrontShell } from '@/components/layout/StorefrontShell'
 import { ClientProviders } from '@/components/providers/ClientProviders'
@@ -78,7 +82,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <head>
         <script
           type="application/ld+json"
@@ -90,7 +94,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-white text-slate-900 antialiased selection:bg-brand-green/20 selection:text-brand-green flex flex-col min-h-screen">
+      <body className="bg-gray-50 text-gray-900 antialiased selection:bg-brand-500/20 selection:text-brand-600 flex flex-col min-h-screen">
         <ClientProviders>
           <StorefrontShell>{children}</StorefrontShell>
         </ClientProviders>

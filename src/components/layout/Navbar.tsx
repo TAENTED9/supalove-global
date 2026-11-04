@@ -10,13 +10,13 @@ import {
   X,
   Globe,
   Truck,
-  ShieldCheck,
   User,
-  PhoneCall,
+  MessageCircle,
+  ChevronDown,
 } from 'lucide-react'
 import { Logo } from '@/components/brand/Logo'
 import { useCartStore } from '@/store/cart'
-import { siteConfig, telHref } from '@/config/site'
+import { siteConfig, whatsappHref } from '@/config/site'
 import { SearchModal } from '@/components/layout/SearchModal'
 
 interface StoreCategory {
@@ -38,127 +38,105 @@ export function Navbar() {
 
   const closeSearchModal = useCallback(() => {
     setSearchModalOpen(false)
-    if (window.matchMedia('(max-width: 1023px)').matches) {
-      window.requestAnimationFrame(() => mobileMenuButtonRef.current?.focus())
-    }
   }, [])
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
 
+  // Close menus on route change
   useEffect(() => {
     setMobileMenuOpen(false)
     setCatDropdownOpen(false)
   }, [pathname])
 
+  // Mobile menu focus trap + scroll lock
   useEffect(() => {
     if (!mobileMenuOpen) return
-
     const previouslyFocused = document.activeElement as HTMLElement | null
     document.body.style.overflow = 'hidden'
-    const focusFrame = window.requestAnimationFrame(() => {
+    const raf = window.requestAnimationFrame(() => {
       mobileMenuRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus()
     })
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMobileMenuOpen(false)
-        return
-      }
-
-      if (event.key !== 'Tab' || !mobileMenuRef.current) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setMobileMenuOpen(false); return }
+      if (e.key !== 'Tab' || !mobileMenuRef.current) return
       const focusable = mobileMenuRef.current.querySelectorAll<HTMLElement>(
         'a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])'
       )
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-
-      if (!first || !last) {
-        event.preventDefault()
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
+      if (!first || !last) { e.preventDefault(); return }
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => {
-      window.cancelAnimationFrame(focusFrame)
+      window.cancelAnimationFrame(raf)
       document.body.style.overflow = ''
       window.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus()
     }
   }, [mobileMenuOpen])
 
+  // Lazy-fetch categories on dropdown/menu open
   useEffect(() => {
     if ((!catDropdownOpen && !mobileMenuOpen) || categories.length > 0) return
     fetch('/api/categories')
-      .then((response) => response.json())
-      .then((data: { categories?: StoreCategory[] }) => {
-        setCategories(Array.isArray(data.categories) ? data.categories : [])
+      .then((r) => r.json())
+      .then((d: { categories?: StoreCategory[] }) => {
+        setCategories(Array.isArray(d.categories) ? d.categories : [])
       })
       .catch(() => setCategories([]))
-  }, [catDropdownOpen, categories.length, mobileMenuOpen])
+  }, [catDropdownOpen, mobileMenuOpen, categories.length])
 
-  // Close category dropdown on outside click
+  // Category dropdown outside click
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (catRef.current && !catRef.current.contains(e.target as Node)) {
-        setCatDropdownOpen(false)
-      }
+    const handleOutside = (e: MouseEvent) => {
+      if (catRef.current && !catRef.current.contains(e.target as Node)) setCatDropdownOpen(false)
     }
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setCatDropdownOpen(false)
-    }
-    document.addEventListener('mousedown', handleOutsideClick)
-    document.addEventListener('keydown', handleEscape)
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setCatDropdownOpen(false) }
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('keydown', handleEsc)
     return () => {
-      document.removeEventListener('mousedown', handleOutsideClick)
-      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('keydown', handleEsc)
     }
   }, [])
 
-  // Keyboard shortcut Ctrl+K or Cmd+K
+  // ⌘K / Ctrl+K shortcut
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setSearchModalOpen(true)
-      }
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchModalOpen(true) }
     }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
   }, [])
 
   const itemCount = mounted ? totalItems() : 0
 
   return (
     <>
-      {/* Top Banner: Export Quality & Fast Delivery announcement strip */}
+      {/* ── Announcement strip ────────────────────────────────────────── */}
       <div className="bg-slate-900 text-white text-[11px] font-medium py-1.5 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-slate-300">
-              <Globe size={13} className="text-brand-orange" />
-              Worldwide Foodstuff Export &amp; Nationwide Nigeria Delivery
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex items-center gap-1.5 text-slate-300 min-w-0">
+              <Globe size={13} className="text-brand-orange shrink-0" />
+              <span className="truncate">Worldwide Export &amp; Nationwide Delivery</span>
             </span>
-            <span className="hidden md:inline-block text-slate-500">|</span>
-            <span className="hidden md:flex items-center gap-1.5 text-slate-300">
-              <ShieldCheck size={13} className="text-brand-green" />
-              100% Quality Inspected Agricultural Produce
+            <span className="hidden lg:flex items-center gap-1.5 text-slate-300 shrink-0">
+              <Truck size={12} className="text-brand-green" />
+              100% Quality Inspected Produce
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <Link
               href="/track-order"
               className="text-slate-300 hover:text-white flex items-center gap-1 transition-colors"
             >
               <Truck size={12} className="text-brand-orange" />
-              Track Order
+              <span>Track Order</span>
             </Link>
             <span className="text-slate-600">|</span>
             <Link
@@ -166,258 +144,240 @@ export function Navbar() {
               className="text-slate-400 hover:text-brand-orange transition-colors flex items-center gap-1"
             >
               <User size={12} />
-              Admin
+              <span>Admin</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Main Sticky Navbar */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-md transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-20 gap-4">
-            {/* Left: Brand Logo */}
-            <div className="shrink-0 flex items-center gap-3">
-              <Logo size="md" />
+      {/* ── Main navbar h-14 sticky ───────────────────────────────────── */}
+      <header className="sticky top-0 left-0 w-full z-40 bg-white border-b border-gray-200 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 xl:px-0">
+          <div className="flex items-center h-14 gap-2 md:gap-4">
+
+            {/* Logo */}
+            <Logo size="sm" className="shrink-0" />
+
+            {/* Categories dropdown – desktop only */}
+            <div ref={catRef} className="hidden md:block relative">
+              <button
+                type="button"
+                aria-expanded={catDropdownOpen}
+                aria-haspopup="true"
+                onClick={() => setCatDropdownOpen((v) => !v)}
+                className="flex items-center gap-1.5 h-9 px-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Menu size={14} />
+                All Categories
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {catDropdownOpen && categories.length > 0 && (
+                <div className="absolute top-full left-0 mt-2 w-56 rounded-2xl bg-white shadow-lg border border-gray-200 py-2 z-dropdown animate-fade-in">
+                  {categories.map((cat) => (
+                    <Link
+                      key={cat.slug}
+                      href={`/products?category=${cat.slug}`}
+                      onClick={() => setCatDropdownOpen(false)}
+                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-600 transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Store search and live category menu */}
-            <div className="hidden max-w-2xl flex-1 items-center gap-2 lg:flex">
-              <div ref={catRef} className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setCatDropdownOpen((open) => !open)}
-                  aria-expanded={catDropdownOpen}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:border-brand-green/40 hover:text-brand-green"
-                >
-                  <Menu size={15} /> Shop categories
-                </button>
-                {catDropdownOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white py-2 shadow-xl animate-slide-up">
-                    <Link href="/products" className="block px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50" onClick={() => setCatDropdownOpen(false)}>
-                      All products
-                    </Link>
-                    {categories.map((category) => (
-                      <Link
-                        key={category.slug}
-                        href={`/products?category=${category.slug}`}
-                        onClick={() => setCatDropdownOpen(false)}
-                        className="block px-4 py-2.5 text-sm text-slate-600 transition-colors hover:bg-brand-green/5 hover:text-brand-green"
-                      >
-                        {category.name}
-                      </Link>
-                    ))}
-                    {!categories.length && <p className="px-4 py-2 text-xs text-slate-500">Categories unavailable</p>}
-                  </div>
-                )}
-              </div>
+            {/* Search bar – desktop only (same shape with old appearance) */}
+            <div className="hidden lg:flex flex-1 max-w-lg mx-4">
               <button
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
-                className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-500 transition-colors hover:border-brand-green/40 hover:bg-white"
+                className="flex h-10 w-full items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-500 transition-colors hover:border-brand-green/40 hover:bg-white"
                 aria-label="Search products"
               >
-                <Search size={17} className="shrink-0 text-brand-green" />
-                <span className="flex-1 truncate">Search foodstuffs, brands, or pantry essentials</span>
-                <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 xl:inline">Ctrl K</kbd>
+                <Search size={16} className="shrink-0 text-brand-green" />
+                <span className="flex-1 truncate text-xs sm:text-sm text-slate-400">
+                  Search rice, palm oil, beans, or foodstuffs…
+                </span>
+                <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 xl:inline">
+                  Ctrl K
+                </kbd>
               </button>
             </div>
 
-            {/* Right: Navigation Links & Cart Button */}
-            <div className="flex items-center gap-2 sm:gap-4">
-              <nav className="hidden md:flex items-center gap-5 mr-1 text-xs font-semibold text-slate-700">
-                <Link
-                  href="/"
-                  className="hover:text-brand-green transition-colors py-1"
-                >
-                  Home
-                </Link>
-                <Link
-                  href="/products"
-                  className="hover:text-brand-green transition-colors py-1"
-                >
-                  Products
-                </Link>
-                <Link
-                  href="/products?unit=BAG"
-                  className="hover:text-brand-green transition-colors py-1 flex items-center gap-1"
-                >
-                  Bulk Bags
-                  <span className="bg-brand-orange text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
-                    Wholesale
-                  </span>
-                </Link>
-                <Link
-                  href="/track-order"
-                  className="hover:text-brand-green transition-colors py-1"
-                >
-                  Track Order
-                </Link>
-              </nav>
-
-              {/* Mobile Search Button */}
+            {/* Right-side actions */}
+            <div className="ml-auto flex items-center gap-2">
+              {/* Search icon – mobile/tablet */}
               <button
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
-                className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                 aria-label="Open search"
+                className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
               >
                 <Search size={20} />
               </button>
 
-              {/* Cart Drawer Trigger Button */}
+              {/* Cart button – icon with badge on top */}
               <button
                 type="button"
                 onClick={openDrawer}
-                className="relative flex items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 transition-all group"
-                aria-label="Shopping Cart"
+                aria-label={`Shopping cart with ${itemCount} items`}
+                className="relative flex items-center justify-center w-10 h-10 rounded-full text-slate-700 hover:text-brand-green hover:bg-slate-100 transition-colors"
               >
-                <div className="relative">
-                  <ShoppingBag
-                    size={19}
-                    className="text-slate-700 group-hover:text-brand-green transition-colors"
-                  />
-                  {mounted && itemCount > 0 && (
-                    <span className="absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 bg-brand-orange text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-sm animate-scale-in">
-                      {itemCount}
-                    </span>
-                  )}
-                </div>
-                <span className="hidden sm:inline text-xs font-bold text-slate-700 group-hover:text-brand-green transition-colors">
-                  Cart
-                </span>
+                <ShoppingBag size={21} />
+                {mounted && itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-brand-orange text-white text-[10px] font-black rounded-full flex items-center justify-center leading-none shadow-xs">
+                    {itemCount > 9 ? '9+' : itemCount}
+                  </span>
+                )}
               </button>
 
-              {/* Mobile Hamburger Menu Button */}
+              {/* Hamburger – mobile/tablet */}
               <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 ref={mobileMenuButtonRef}
+                type="button"
+                aria-label="Open navigation menu"
                 aria-expanded={mobileMenuOpen}
                 aria-controls="mobile-store-menu"
-                className="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
-                {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                <Menu size={20} />
               </button>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation Drawer / Dropdown */}
-        {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
-            <button
-              type="button"
-              aria-label="Close navigation menu"
-              onClick={() => setMobileMenuOpen(false)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-            />
-            <div
-              ref={mobileMenuRef}
-              id="mobile-store-menu"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Store navigation"
-              tabIndex={-1}
-              className="absolute inset-y-0 right-0 flex w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white px-5 pb-8 pt-5 shadow-2xl animate-slide-up"
-            >
-              <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
-                <span className="text-sm font-bold text-slate-900">Shop Supalove</span>
-                <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-                  <X size={20} />
-                </button>
-              </div>
+      {/* ── Mobile slide-in drawer ────────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-modal md:hidden">
+          {/* Backdrop */}
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileMenuOpen(false)}
+            className="absolute inset-0 bg-gray-950/40 backdrop-blur-sm"
+          />
+
+          {/* Drawer panel */}
+          <div
+            ref={mobileMenuRef}
+            id="mobile-store-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Store navigation"
+            tabIndex={-1}
+            className="absolute inset-y-0 right-0 flex w-[min(22rem,88vw)] flex-col overflow-y-auto bg-white px-5 pb-8 pt-5 shadow-2xl animate-slide-up"
+          >
+            {/* Header */}
+            <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4">
+              <Logo size="sm" />
               <button
                 type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false)
-                  setSearchModalOpen(true)
-                }}
-                className="mb-5 flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 text-left text-sm text-slate-500"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
               >
-                <Search size={17} className="text-brand-green" /> Search products
+                <X size={20} />
               </button>
+            </div>
 
-              <nav className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
+            {/* Search shortcut */}
+            <button
+              type="button"
+              onClick={() => { setMobileMenuOpen(false); setSearchModalOpen(true) }}
+              className="mb-5 flex min-h-11 items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 text-left text-sm text-slate-500 hover:border-brand-green/40 hover:bg-white transition-colors"
+            >
+              <Search size={16} className="text-brand-green" />
+              <span className="text-slate-400">Search rice, palm oil, beans…</span>
+            </button>
+
+            {/* Nav links */}
+            <nav className="flex flex-col gap-1 text-sm font-semibold text-gray-700">
               <Link
                 href="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+                className="px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Home
               </Link>
               <Link
                 href="/products"
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-3 hover:bg-slate-50 transition-colors"
+                className="px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 All Products
               </Link>
-              <div className="my-2 border-t border-slate-100 pt-3">
-                <p className="px-3 pb-2 text-[10px] font-bold uppercase text-slate-400">Categories</p>
-                {categories.map((category) => (
+
+              {/* Categories sub-section */}
+              <div className="my-2 border-t border-gray-100 pt-3">
+                <p className="px-3 pb-2 text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                  Categories
+                </p>
+                {categories.map((cat) => (
                   <Link
-                    key={category.slug}
-                    href={`/products?category=${category.slug}`}
+                    key={cat.slug}
+                    href={`/products?category=${cat.slug}`}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-brand-green/5 hover:text-brand-green"
+                    className="block rounded-lg px-3 py-2.5 text-sm text-gray-600 hover:bg-brand-50 hover:text-brand-600"
                   >
-                    {category.name}
+                    {cat.name}
                   </Link>
                 ))}
               </div>
+
               <Link
                 href="/products?unit=BAG"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between"
+                className="px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-between"
               >
                 <span>Bulk Bags &amp; Export</span>
-                <span className="bg-brand-orange text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
                   Wholesale
                 </span>
               </Link>
               <Link
-                href="/cart"
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between"
-              >
-                <span>Shopping Cart</span>
-                <span className="font-bold text-brand-green">{itemCount} items</span>
-              </Link>
-              <Link
                 href="/track-order"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+                className="px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Track Your Order
               </Link>
               <Link
-                href="/admin/login"
+                href="/delivery"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                className="px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
               >
-                Admin Portal
+                Delivery &amp; Returns
               </Link>
-              </nav>
+            </nav>
 
-            {/* Quick Contact In Mobile Menu */}
-              <div className="mt-auto flex items-center gap-3 border-t border-slate-100 pt-5 text-xs text-slate-500">
-              <PhoneCall size={14} className="text-brand-green" />
-              <a href={telHref()} className="hover:text-brand-green transition-colors">
-                Customer Inquiries: {siteConfig.phoneIntl || siteConfig.phone}
+            {/* WhatsApp CTA */}
+            <div className="mt-auto pt-5 border-t border-gray-100">
+              <a
+                href={whatsappHref('Hello Supalovefoods, I would like to place an order.')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-4 py-3 rounded-xl transition-colors"
+              >
+                <MessageCircle size={16} />
+                Order on WhatsApp
               </a>
-            </div>
+              <p className="mt-3 text-center text-xs text-gray-400">
+                {siteConfig.phone}
+              </p>
             </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* Global Search Modal */}
-      <SearchModal
-        isOpen={searchModalOpen}
-        onClose={closeSearchModal}
-      />
+      <SearchModal isOpen={searchModalOpen} onClose={closeSearchModal} />
     </>
   )
 }

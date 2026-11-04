@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Package, Scale, Droplet, Box, ArrowRight } from 'lucide-react'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 
 const UNITS = [
   {
@@ -54,19 +55,9 @@ const UNITS = [
 
 export function ShopByUnit() {
   return (
-    <section className="py-14 sm:py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-xs font-bold uppercase tracking-widest text-brand-green">
-            Flexible Purchasing Options
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-1.5">
-            Shop by Measurement Unit
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-2">
-            Whether you need a 1-litre bottle for family stew or 40ft container loads of 50kg grain bags, we provide tailored pricing and packaging.
-          </p>
-        </div>
+    <section className="py-8 sm:py-10 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 xl:px-0">
+        <SectionHeader title="Shop by Unit" href="/products" />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {UNITS.map((item) => {

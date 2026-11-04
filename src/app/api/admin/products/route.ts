@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/audit'
 import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
+import { parseProductSpecs, productSpecsSettingKey } from '@/lib/product-specs'
+
+const productSpecsSchema = z.object({
+  origin: z.string().max(300).default(''),
+  packaging: z.string().max(300).default(''),
+  shelfLife: z.string().max(300).default(''),
+  storage: z.string().max(300).default(''),
+})
 
 const variantSchema = z.object({
   id: z.string().max(128).optional(),
@@ -24,6 +33,12 @@ const createProductSchema = z.object({
   images: z.array(z.string().max(512)).default([]),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
+  specifications: productSpecsSchema.default({
+    origin: '',
+    packaging: '',
+    shelfLife: '',
+    storage: '',
+  }),
   variants: z.array(variantSchema).min(1, 'At least one variant is required').max(20),
 })
 
@@ -44,7 +59,21 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ success: true, products })
+    const specificationRecords = await prisma.setting.findMany({
+      where: { key: { startsWith: 'product_specs_' } },
+      select: { key: true, value: true },
+    })
+    const specificationsByKey = new Map(
+      specificationRecords.map((record) => [record.key, parseProductSpecs(record.value)])
+    )
+
+    return NextResponse.json({
+      success: true,
+      products: products.map((product) => ({
+        ...product,
+        specifications: specificationsByKey.get(productSpecsSettingKey(product.id)),
+      })),
+    })
   } catch (err) {
     console.error('Admin list products error:', err)
     return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
@@ -67,7 +96,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const { name, description, categoryId, images, isActive, isFeatured, variants } = parsed.data
+    const { name, description, categoryId, images, isActive, isFeatured, specifications, variants } = parsed.data
     const slug = parsed.data.slug?.trim() ? slugify(parsed.data.slug) : slugify(name)
 
     const existingSlug = await prisma.product.findUnique({ where: { slug } })
@@ -106,6 +135,15 @@ export async function POST(req: Request) {
         })
       }
 
+      const specsKey = productSpecsSettingKey(product.id)
+      if (Object.values(specifications).some((value) => value.trim())) {
+        await tx.setting.upsert({
+          where: { key: specsKey },
+          create: { key: specsKey, value: JSON.stringify(specifications) },
+          update: { value: JSON.stringify(specifications) },
+        })
+      }
+
       return tx.product.findUnique({
         where: { id: product.id },
         include: { category: true, variants: true },
@@ -116,7 +154,14 @@ export async function POST(req: Request) {
       slug,
       categoryId,
       variantCount: variants.length,
+      specificationsUpdated: Object.values(specifications).some((value) => value.trim()),
     }, session.user?.email || 'admin')
+
+    try {
+      revalidateTag('products')
+    } catch {
+      // safe fallback in dev
+    }
 
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 })
   } catch (err) {

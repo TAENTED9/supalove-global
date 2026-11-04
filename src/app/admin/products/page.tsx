@@ -18,6 +18,7 @@ import {
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { EMPTY_PRODUCT_SPECS, type ProductSpecs } from '@/lib/product-specs'
 
 interface VariantFormItem {
   id?: string
@@ -40,6 +41,7 @@ interface ProductRecord {
   images: string[]
   isActive: boolean
   isFeatured: boolean
+  specifications?: ProductSpecs
   variants: {
     id: string
     label: string
@@ -65,6 +67,7 @@ interface ProductFormDraft {
   images: string[]
   isActive: boolean
   isFeatured: boolean
+  specifications: ProductSpecs
   variants: VariantFormItem[]
 }
 
@@ -82,6 +85,12 @@ function isProductFormDraft(value: unknown): value is ProductFormDraft {
     draft.images.every((image) => typeof image === 'string') &&
     typeof draft.isActive === 'boolean' &&
     typeof draft.isFeatured === 'boolean' &&
+    (draft.specifications === undefined ||
+      (typeof draft.specifications === 'object' &&
+        draft.specifications !== null &&
+        ['origin', 'packaging', 'shelfLife', 'storage'].every(
+          (field) => typeof (draft.specifications as Record<string, unknown>)[field] === 'string'
+        ))) &&
     Array.isArray(draft.variants) &&
     draft.variants.every((variant) => {
       if (!variant || typeof variant !== 'object') return false
@@ -121,6 +130,7 @@ export default function AdminProductsPage() {
   const [images, setImages] = useState<string[]>([])
   const [isActive, setIsActive] = useState(true)
   const [isFeatured, setIsFeatured] = useState(false)
+  const [specifications, setSpecifications] = useState<ProductSpecs>(EMPTY_PRODUCT_SPECS)
   const [variants, setVariants] = useState<VariantFormItem[]>([
     { label: '50kg Bag', unit: 'BAG', priceInNaira: 52000, stock: 50, minOrderQty: 1, sku: 'RICE-50KG' },
   ])
@@ -171,6 +181,7 @@ export default function AdminProductsPage() {
           images,
           isActive,
           isFeatured,
+          specifications,
           variants,
         }
         window.localStorage.setItem(PRODUCT_DRAFT_KEY, JSON.stringify(draft))
@@ -183,7 +194,7 @@ export default function AdminProductsPage() {
 
     setDraftState('saving')
     return () => window.clearTimeout(timeout)
-  }, [modalOpen, editingProduct, name, slug, description, categoryId, images, isActive, isFeatured, variants])
+  }, [modalOpen, editingProduct, name, slug, description, categoryId, images, isActive, isFeatured, specifications, variants])
 
   const openCreateModal = () => {
     setEditingProduct(null)
@@ -194,6 +205,7 @@ export default function AdminProductsPage() {
     setImages([])
     setIsActive(true)
     setIsFeatured(false)
+    setSpecifications(EMPTY_PRODUCT_SPECS)
     setVariants([
       { label: 'Standard Pack', unit: 'KG', priceInNaira: 5000, stock: 100, minOrderQty: 1, sku: `PROD-${Date.now().toString().slice(-4)}` },
     ])
@@ -210,6 +222,7 @@ export default function AdminProductsPage() {
           setImages(parsed.images)
           setIsActive(parsed.isActive)
           setIsFeatured(parsed.isFeatured)
+          setSpecifications(parsed.specifications ?? EMPTY_PRODUCT_SPECS)
           setVariants(parsed.variants)
           setDraftState('saved')
         } else {
@@ -234,6 +247,7 @@ export default function AdminProductsPage() {
     setImages(p.images || [])
     setIsActive(p.isActive)
     setIsFeatured(p.isFeatured)
+    setSpecifications(p.specifications ?? EMPTY_PRODUCT_SPECS)
     setVariants(
       p.variants.map((v) => ({
         id: v.id,
@@ -333,6 +347,7 @@ export default function AdminProductsPage() {
         images,
         isActive,
         isFeatured,
+        specifications,
         variants: variants.map((v) => ({
           id: v.id,
           label: v.label,
@@ -798,6 +813,33 @@ export default function AdminProductsPage() {
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:border-brand-green"
                 />
               </div>
+
+              <fieldset className="space-y-3">
+                <legend className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Product Specifications (optional)
+                </legend>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([
+                    ['origin', 'Origin'],
+                    ['packaging', 'Packaging'],
+                    ['shelfLife', 'Shelf life'],
+                    ['storage', 'Storage'],
+                  ] as const).map(([field, label]) => (
+                    <label key={field} className="block text-xs font-semibold text-slate-600">
+                      {label}
+                      <input
+                        type="text"
+                        maxLength={300}
+                        value={specifications[field]}
+                        onChange={(event) =>
+                          setSpecifications((current) => ({ ...current, [field]: event.target.value }))
+                        }
+                        className="mt-1.5 w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
               {/* Multi-Image Upload & Preview */}
               <div>
