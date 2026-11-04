@@ -1,10 +1,5 @@
-'use client'
-
-import { useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
-  Search,
   ShieldCheck,
   Package,
   Globe2,
@@ -14,19 +9,6 @@ import {
 } from 'lucide-react'
 
 export function HeroBanner() {
-  const router = useRouter()
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const q = inputRef.current?.value.trim()
-    if (q) {
-      router.push(`/products?search=${encodeURIComponent(q)}`)
-    } else {
-      router.push('/products')
-    }
-  }
-
   return (
     <section className="relative w-full overflow-hidden bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 py-16 sm:py-24 lg:py-28 text-white">
       {/* Subtle background radial glows */}
@@ -55,30 +37,8 @@ export function HeroBanner() {
           Order for domestic delivery or schedule 20ft/40ft export containers worldwide.
         </p>
 
-        {/* Inline Search Bar (Campify style) */}
-        <form onSubmit={handleSearch} className="mt-8 max-w-2xl mx-auto">
-          <div className="flex items-center bg-white/95 backdrop-blur-md rounded-2xl p-2 shadow-2xl shadow-black/40 gap-2 border border-white/20">
-            <span className="hidden sm:flex items-center px-3.5 py-1.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-700 select-none shrink-0">
-              All Produce
-            </span>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search foodstuffs e.g. 50kg rice, palm oil 25L, Ijebu garri..."
-              className="flex-1 bg-transparent px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none"
-            />
-            <button
-              type="submit"
-              className="shrink-0 flex items-center gap-2 bg-brand-green hover:bg-brand-green-hover text-white font-bold px-5 py-2.5 rounded-xl transition-all shadow-md shadow-brand-green/30 text-xs sm:text-sm active:scale-95"
-            >
-              <Search size={16} />
-              <span className="hidden sm:inline">Search</span>
-            </button>
-          </div>
-        </form>
-
         {/* Action Buttons */}
-        <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
           <Link
             href="/products"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-green hover:bg-brand-green-hover text-white font-bold px-7 py-3.5 rounded-xl transition-all shadow-lg shadow-brand-green/30 text-sm active:scale-95"

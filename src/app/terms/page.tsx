@@ -1,4 +1,10 @@
 import { siteConfig } from '@/config/site'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Terms of Supply & Trade | Supalovefoods',
+  description: 'Terms covering Supalovefoods online shopping, payments, orders, and delivery.',
+}
 
 export default function TermsPage() {
   return (

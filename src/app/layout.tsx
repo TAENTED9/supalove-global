@@ -32,6 +32,14 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     locale: 'en_NG',
     type: 'website',
+    images: ['/opengraph-image'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${siteConfig.name} | Premium Foodstuff Export, Wholesale & Retail`,
+    description:
+      'Buy verified Nigerian foodstuffs in bags, kg, and litres. Retail delivery & international export shipping.',
+    images: ['/opengraph-image'],
   },
 }
 
@@ -42,7 +50,6 @@ export default function RootLayout({
 }>) {
   const socialProfiles = Object.values(siteConfig.socials).filter(Boolean)
   const organizationSchema = {
-    '@context': 'https://schema.org',
     '@type': 'Organization',
     name: siteConfig.name,
     url: siteConfig.siteUrl,
@@ -59,13 +66,28 @@ export default function RootLayout({
       sameAs: socialProfiles,
     }),
   }
+  const websiteSchema = {
+    '@type': 'WebSite',
+    name: siteConfig.name,
+    url: siteConfig.siteUrl,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${siteConfig.siteUrl}/products?search={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  }
 
   return (
     <html lang="en">
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@graph': [organizationSchema, websiteSchema],
+            }).replace(/</g, '\\u003c'),
+          }}
         />
       </head>
       <body className="bg-white text-slate-900 antialiased selection:bg-brand-green/20 selection:text-brand-green flex flex-col min-h-screen">

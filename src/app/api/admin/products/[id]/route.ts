@@ -10,7 +10,9 @@ const updateVariantSchema = z.object({
   label: z.string().min(1).max(120),
   unit: z.enum(['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE']),
   price: z.number().min(0).max(100000000),
+  compareAtPrice: z.number().min(0).max(100000000).nullable().optional(),
   stock: z.number().int().min(0).max(500000),
+  minOrderQty: z.number().int().min(1).max(500000).optional(),
   sku: z.string().min(1).max(80),
 })
 
@@ -25,15 +27,16 @@ const updateProductSchema = z.object({
   variants: z.array(updateVariantSchema).max(20).optional(),
 })
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const session = await requireAdmin()
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { category: true, variants: true },
     })
 
@@ -48,8 +51,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const session = await requireAdmin()
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -77,7 +81,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       if (isFeatured !== undefined) updateData.isFeatured = isFeatured
 
       const prod = await tx.product.update({
-        where: { id: params.id },
+        where: { id },
         data: updateData,
       })
 
@@ -85,7 +89,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       if (variants && variants.length > 0) {
         // Collect existing variant IDs
         const existingVariants = await tx.productVariant.findMany({
-          where: { productId: params.id },
+          where: { productId: id },
         })
         const incomingIds = variants.map((v) => v.id).filter(Boolean) as string[]
 
@@ -104,18 +108,22 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
                 label: v.label,
                 unit: v.unit,
                 price: Math.round(v.price),
+                compareAtPrice: v.compareAtPrice ?? null,
                 stock: v.stock,
+                minOrderQty: v.minOrderQty ?? 1,
                 sku: v.sku.trim().toUpperCase(),
               },
             })
           } else {
             await tx.productVariant.create({
               data: {
-                productId: params.id,
+                productId: id,
                 label: v.label,
                 unit: v.unit,
                 price: Math.round(v.price),
+                compareAtPrice: v.compareAtPrice ?? null,
                 stock: v.stock,
+                minOrderQty: v.minOrderQty ?? 1,
                 sku: v.sku.trim().toUpperCase(),
               },
             })
@@ -129,7 +137,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       })
     })
 
-    await auditAdminAction('product.update', params.id, {
+    await auditAdminAction('product.update', id, {
       changes: {
         name,
         slug,
@@ -148,18 +156,19 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const session = await requireAdmin()
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
-    await auditAdminAction('product.delete', params.id, {}, session.user?.email || 'admin')
+    await auditAdminAction('product.delete', id, {}, session.user?.email || 'admin')
 
     return NextResponse.json({ success: true, message: 'Product deleted' })
   } catch (err) {

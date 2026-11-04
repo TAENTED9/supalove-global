@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  Settings,
 } from 'lucide-react'
 import { Logo } from '@/components/brand/Logo'
 
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { label: 'Products', href: '/admin/products', icon: Package },
   { label: 'Categories', href: '/admin/categories', icon: Layers },
   { label: 'Orders', href: '/admin/orders', icon: ShoppingBag },
+  { label: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
 export function AdminLayoutClient({ children }: AdminLayoutClientProps) {

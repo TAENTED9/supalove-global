@@ -8,7 +8,7 @@ import { Pagination } from '@/components/products/Pagination'
 import { getCategories, getProducts } from '@/lib/data'
 
 interface ProductsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     category?: string
     unit?: string
     inStock?: string
@@ -17,13 +17,14 @@ interface ProductsPageProps {
     maxPrice?: string
     sort?: string
     page?: string
-  }
+  }>
 }
 
 export async function generateMetadata({ searchParams }: ProductsPageProps): Promise<Metadata> {
-  const category = searchParams.category
-  const search = searchParams.search
-  const unit = searchParams.unit
+  const params = await searchParams
+  const category = params.category
+  const search = params.search
+  const unit = params.unit
 
   let title = 'All Products & Foodstuffs | Supalovefoods'
   if (category) {
@@ -37,24 +38,29 @@ export async function generateMetadata({ searchParams }: ProductsPageProps): Pro
   return {
     title,
     description: 'Explore verified Nigerian foodstuffs, 50kg grain bags, pure palm oils, legumes, and agricultural commodities ready for retail and international export.',
+    alternates: { canonical: '/products' },
+    robots: params.search
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
   }
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const page = parseInt(searchParams.page || '1', 10)
-  const minPrice = searchParams.minPrice ? parseFloat(searchParams.minPrice) : undefined
-  const maxPrice = searchParams.maxPrice ? parseFloat(searchParams.maxPrice) : undefined
+  const params = await searchParams
+  const page = parseInt(params.page || '1', 10)
+  const minPrice = params.minPrice ? parseFloat(params.minPrice) : undefined
+  const maxPrice = params.maxPrice ? parseFloat(params.maxPrice) : undefined
 
   const [categories, { products, total, totalPages, currentPage }] = await Promise.all([
     getCategories(),
     getProducts({
-      category: searchParams.category,
-      unit: searchParams.unit,
-      inStock: searchParams.inStock === 'true',
-      search: searchParams.search,
+      category: params.category,
+      unit: params.unit,
+      inStock: params.inStock === 'true',
+      search: params.search,
       minPrice,
       maxPrice,
-      sort: searchParams.sort,
+      sort: params.sort,
       page,
       limit: 12,
     }),
@@ -72,19 +78,19 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <Link href="/products" className="text-slate-800 font-bold">
             Products Catalog
           </Link>
-          {searchParams.category && (
+          {params.category && (
             <>
               <ChevronRight size={13} />
               <span className="text-brand-green font-bold capitalize">
-                {searchParams.category.replace('-', ' ')}
+                {params.category.replace('-', ' ')}
               </span>
             </>
           )}
-          {searchParams.unit && (
+          {params.unit && (
             <>
               <ChevronRight size={13} />
               <span className="text-brand-orange font-bold uppercase">
-                {searchParams.unit}
+                {params.unit}
               </span>
             </>
           )}
@@ -93,10 +99,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         {/* Page Title & Tagline */}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            {searchParams.category
-              ? searchParams.category.replace('-', ' ').toUpperCase()
-              : searchParams.unit
-              ? `PRODUCE SOLD BY ${searchParams.unit}`
+            {params.category
+              ? params.category.replace('-', ' ').toUpperCase()
+              : params.unit
+              ? `PRODUCE SOLD BY ${params.unit}`
               : 'All Foodstuffs & Commodities'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">

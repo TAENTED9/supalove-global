@@ -8,6 +8,7 @@ import { formatPrice } from '@/lib/utils'
 import { useCartStore } from '@/store/cart'
 import { toast } from 'sonner'
 import type { ProductItem, VariantItem } from '@/lib/data'
+import { trackStoreEvent } from '@/lib/analytics'
 
 interface ProductCardProps {
   product: ProductItem
@@ -32,6 +33,12 @@ export function ProductCard({ product }: ProductCardProps) {
     e.preventDefault()
     e.stopPropagation()
 
+    if (selectedVariant.stock < (selectedVariant.minOrderQty || 1)) {
+      toast.error('This size is currently out of stock.')
+      return
+    }
+
+    trackStoreEvent('add_to_cart', { productId: product.id, productSlug: product.slug })
     addItem({
       productId: product.id,
       variantId: selectedVariant.id,
@@ -41,6 +48,7 @@ export function ProductCard({ product }: ProductCardProps) {
       price: selectedVariant.price,
       image: product.images[0] || undefined,
       stock: selectedVariant.stock,
+      minOrderQty: selectedVariant.minOrderQty || 1,
       sku: selectedVariant.sku,
       unit: selectedVariant.unit,
     })
@@ -151,11 +159,12 @@ export function ProductCard({ product }: ProductCardProps) {
           <button
             type="button"
             onClick={handleAddToCart}
+            disabled={selectedVariant.stock < (selectedVariant.minOrderQty || 1)}
             className={`flex items-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs transition-all shadow-sm active:scale-95 ${
               added
                 ? 'bg-emerald-600 text-white'
                 : 'bg-brand-green hover:bg-brand-green-hover text-white shadow-brand-green/20'
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-50`}
             aria-label={`Add ${product.name} to cart`}
           >
             {added ? (

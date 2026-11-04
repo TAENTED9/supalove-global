@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface CategoryRecord {
   id: string
@@ -26,6 +27,7 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryRecord | null>(null)
+  const [categoryToDelete, setCategoryToDelete] = useState<CategoryRecord | null>(null)
 
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
@@ -100,19 +102,13 @@ export default function AdminCategoriesPage() {
   }
 
   const handleDelete = async (cat: CategoryRecord) => {
-    if (!confirm(`Are you sure you want to delete "${cat.name}"?`)) return
-
-    try {
-      const res = await fetch(`/api/admin/categories/${cat.id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete category')
-      }
-      toast.success('Category deleted')
-      fetchCategories()
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error deleting category')
+    const res = await fetch(`/api/admin/categories/${cat.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to delete category')
     }
+    toast.success('Category deleted')
+    fetchCategories()
   }
 
   return (
@@ -180,7 +176,7 @@ export default function AdminCategoriesPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(c)}
+                          onClick={() => setCategoryToDelete(c)}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                           title="Delete"
                         >
@@ -286,6 +282,20 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={categoryToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setCategoryToDelete(null)
+        }}
+        title="Delete category?"
+        description={
+          categoryToDelete
+            ? `"${categoryToDelete.name}" will be permanently deleted. This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete category"
+        onConfirm={() => (categoryToDelete ? handleDelete(categoryToDelete) : undefined)}
+      />
     </div>
   )
 }

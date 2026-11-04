@@ -1,4 +1,10 @@
 import { siteConfig } from '@/config/site'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy | Supalovefoods',
+  description: 'How Supalovefoods handles order, delivery, and optional shopping analytics data.',
+}
 
 export default function PrivacyPage() {
   return (
@@ -50,8 +56,15 @@ export default function PrivacyPage() {
             </p>
           </section>
 
+          <section className="space-y-2">
+            <h2 className="text-base font-bold text-slate-900">5. Optional Shopping Analytics</h2>
+            <p>
+              If you accept optional analytics, we record limited events such as product views, cart additions, search activity, and checkout completion. Search text and payment details are not stored with these events. You can choose essential storage only in the cookie notice.
+            </p>
+          </section>
+
           <section className="space-y-2 pt-4 border-t border-slate-100">
-            <h2 className="text-base font-bold text-slate-900">5. Contact Data Privacy Officer</h2>
+            <h2 className="text-base font-bold text-slate-900">6. Contact Data Privacy Officer</h2>
             <p>
               For any questions regarding your data or to request record deletion, email <strong>{siteConfig.email}</strong>.
             </p>

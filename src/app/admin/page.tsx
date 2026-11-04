@@ -25,6 +25,7 @@ export default async function AdminOverviewPage() {
   let deliveredOrders = 0
   let averageOrderValue = 0
   let lowStockProducts: { name: string; label: string; stock: number; sku: string }[] = []
+  let statsError = false
   let recentOrders: {
     id: string
     reference: string
@@ -35,7 +36,18 @@ export default async function AdminOverviewPage() {
   }[] = []
 
   try {
-    const [prodCount, catCount, orders, lowStockVariants] = await Promise.all([
+    const [
+      prodCount,
+      catCount,
+      orders,
+      lowStockVariants,
+      orderCount,
+      revenueSum,
+      pendingCount,
+      processingCount,
+      deliveredCount,
+      paidOrdersCount,
+    ] = await Promise.all([
       prisma.product.count(),
       prisma.category.count(),
       prisma.order.findMany({
@@ -47,35 +59,25 @@ export default async function AdminOverviewPage() {
         include: { product: true },
         take: 4,
       }),
+      prisma.order.count(),
+      prisma.order.aggregate({
+        _sum: { total: true },
+        where: { status: 'PAID' },
+      }),
+      prisma.order.count({ where: { status: 'PENDING' } }),
+      prisma.order.count({ where: { status: 'PROCESSING' } }),
+      prisma.order.count({ where: { status: 'DELIVERED' } }),
+      prisma.order.count({ where: { status: 'PAID' } }),
     ])
 
-    totalProducts = prodCount || totalProducts
-    totalCategories = catCount || totalCategories
-    totalOrders = orders.length
+    totalProducts = prodCount
+    totalCategories = catCount
+    totalOrders = orderCount
     recentOrders = orders
-
-    const revenueSum = await prisma.order.aggregate({
-      _sum: { total: true },
-      where: { status: 'PAID' },
-    })
     totalRevenue = revenueSum._sum.total || 0
-
-    pendingOrders = await prisma.order.count({
-      where: { status: 'PENDING' },
-    })
-
-    processingOrders = await prisma.order.count({
-      where: { status: 'PROCESSING' },
-    })
-
-    deliveredOrders = await prisma.order.count({
-      where: { status: 'DELIVERED' },
-    })
-
-    // Calculate average order value
-    const paidOrdersCount = await prisma.order.count({
-      where: { status: 'PAID' },
-    })
+    pendingOrders = pendingCount
+    processingOrders = processingCount
+    deliveredOrders = deliveredCount
     if (paidOrdersCount > 0) {
       averageOrderValue = totalRevenue / paidOrdersCount
     }
@@ -88,13 +90,9 @@ export default async function AdminOverviewPage() {
         sku: v.sku,
       }))
     }
-  } catch {
-    // Database fallback calculations
-    lowStockProducts = [
-      { name: 'Special Ofada Rice', label: '10kg Bag', stock: 12, sku: 'OFADA-10KG' },
-      { name: 'Pure Raw Nigerian Honey', label: '1 Litre', stock: 15, sku: 'HONEY-1L' },
-      { name: 'Pure Red Palm Oil', label: '25 Litres Export Drum', stock: 20, sku: 'PALM-25L' },
-    ]
+  } catch (error) {
+    console.error('Admin overview data could not be loaded:', error)
+    statsError = true
   }
 
   return (
@@ -112,6 +110,12 @@ export default async function AdminOverviewPage() {
             Real-time foodstuff supply levels, warehouse stock alerts, and export orders.
           </p>
         </div>
+
+        {statsError && (
+          <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Live order and inventory data could not be loaded. Some dashboard figures may be incomplete.
+          </div>
+        )}
 
         <div className="flex items-center gap-2.5">
           <Link

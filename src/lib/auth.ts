@@ -49,6 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const rateLimit = checkRateLimit(`login:${ip}:${emailAttempt}`, 3, 15 * 60 * 1000)
 
         if (!rateLimit.success) {
+          console.warn('Admin sign-in rate limit reached')
           return null
         }
 
@@ -59,7 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD
 
         if (!adminEmail || !adminPasswordHash) {
-          console.error('ADMIN_EMAIL or ADMIN_PASSWORD_HASH not configured')
+          console.error('Admin sign-in is unavailable: ADMIN_EMAIL and an admin password are required')
           return null
         }
 

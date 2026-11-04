@@ -2,12 +2,13 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ProductDetailClient } from '@/components/products/ProductDetailClient'
 import { ProductCard } from '@/components/products/ProductCard'
-import { getProductBySlug, getRelatedProducts, ALL_PRODUCTS } from '@/lib/data'
+import { getProductBySlug, getRelatedProducts, getProducts, ALL_PRODUCTS } from '@/lib/data'
+import { siteConfig } from '@/config/site'
 
 interface ProductDetailPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export async function generateStaticParams() {
@@ -17,7 +18,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
-  const product = await getProductBySlug(params.slug)
+  const { slug } = await params
+  const product = await getProductBySlug(slug)
   if (!product) {
     return {
       title: 'Product Not Found | Supalovefoods',
@@ -25,25 +27,45 @@ export async function generateMetadata({ params }: ProductDetailPageProps): Prom
   }
 
   const mainImage = product.images[0] || 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'
+  const canonicalUrl = new URL(`/products/${product.slug}`, siteConfig.siteUrl).toString()
 
   return {
     title: `${product.name} | Supalovefoods`,
     description: product.description,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
+      type: 'website',
       title: `${product.name} | Supalovefoods`,
       description: product.description,
       images: [{ url: mainImage, width: 800, height: 800, alt: product.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${product.name} | Supalovefoods`,
+      description: product.description,
+      images: [mainImage],
     },
   }
 }
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const product = await getProductBySlug(params.slug)
+  const { slug } = await params
+  const product = await getProductBySlug(slug)
   if (!product) {
     notFound()
   }
 
-  const relatedProducts = await getRelatedProducts(product.id, product.categoryId)
+  const [categoryMatches, catalog] = await Promise.all([
+    getRelatedProducts(product.id, product.categoryId),
+    getProducts({ page: 1, limit: 8 }),
+  ])
+  const categoryMatchIds = new Set(categoryMatches.map((item) => item.id))
+  const relatedProducts = [
+    ...categoryMatches,
+    ...catalog.products.filter(
+      (item) => item.id !== product.id && !categoryMatchIds.has(item.id)
+    ),
+  ].slice(0, 4)
 
   // JSON-LD structured schema for rich Google search cards
   const jsonLd = {
@@ -52,6 +74,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     name: product.name,
     description: product.description,
     image: product.images,
+    url: new URL(`/products/${product.slug}`, siteConfig.siteUrl).toString(),
+    brand: {
+      '@type': 'Brand',
+      name: siteConfig.name,
+    },
     category: product.category.name,
     offers: product.variants.map((v) => ({
       '@type': 'Offer',
@@ -68,13 +95,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       {/* JSON-LD Script tag */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+        }}
       />
 
       <div className="max-w-5xl mx-auto px-4">
         {/* Main Product Interactive Block */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-          <ProductDetailClient product={product} />
+          <ProductDetailClient key={product.id} product={product} />
         </div>
 
         {/* Similar Products Section */}

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface VariantFormItem {
   id?: string
@@ -56,6 +57,49 @@ interface CategoryOption {
   name: string
 }
 
+interface ProductFormDraft {
+  name: string
+  slug: string
+  description: string
+  categoryId: string
+  images: string[]
+  isActive: boolean
+  isFeatured: boolean
+  variants: VariantFormItem[]
+}
+
+const PRODUCT_DRAFT_KEY = 'supalovefoods-admin-product-draft'
+
+function isProductFormDraft(value: unknown): value is ProductFormDraft {
+  if (!value || typeof value !== 'object') return false
+  const draft = value as Record<string, unknown>
+  return (
+    typeof draft.name === 'string' &&
+    typeof draft.slug === 'string' &&
+    typeof draft.description === 'string' &&
+    typeof draft.categoryId === 'string' &&
+    Array.isArray(draft.images) &&
+    draft.images.every((image) => typeof image === 'string') &&
+    typeof draft.isActive === 'boolean' &&
+    typeof draft.isFeatured === 'boolean' &&
+    Array.isArray(draft.variants) &&
+    draft.variants.every((variant) => {
+      if (!variant || typeof variant !== 'object') return false
+      const item = variant as Record<string, unknown>
+      return (
+        (item.id === undefined || typeof item.id === 'string') &&
+        typeof item.label === 'string' &&
+        ['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE'].includes(String(item.unit)) &&
+        typeof item.priceInNaira === 'number' &&
+        (item.compareAtPriceInNaira === undefined || typeof item.compareAtPriceInNaira === 'number') &&
+        typeof item.stock === 'number' &&
+        typeof item.minOrderQty === 'number' &&
+        typeof item.sku === 'string'
+      )
+    })
+  )
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([])
   const [categories, setCategories] = useState<CategoryOption[]>([])
@@ -63,6 +107,11 @@ export default function AdminProductsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null)
+  const [productToDelete, setProductToDelete] = useState<ProductRecord | null>(null)
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [bulkUpdating, setBulkUpdating] = useState(false)
+  const [draftState, setDraftState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   // Form states
   const [name, setName] = useState('')
@@ -90,10 +139,16 @@ export default function AdminProductsPage() {
       const pData = await pRes.json()
       const cData = await cRes.json()
 
-      if (pData.success) setProducts(pData.products)
-      if (cData.success) setCategories(cData.categories)
-    } catch {
-      toast.error('Failed to load products or categories')
+      if (!pRes.ok || !pData.success) {
+        throw new Error(pData.error || 'Failed to load products')
+      }
+      if (!cRes.ok || !cData.success) {
+        throw new Error(cData.error || 'Failed to load categories')
+      }
+      setProducts(pData.products)
+      setCategories(cData.categories)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load products or categories')
     } finally {
       setLoading(false)
     }
@@ -102,6 +157,33 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    if (!modalOpen || editingProduct) return
+
+    const timeout = window.setTimeout(() => {
+      try {
+        const draft: ProductFormDraft = {
+          name,
+          slug,
+          description,
+          categoryId,
+          images,
+          isActive,
+          isFeatured,
+          variants,
+        }
+        window.localStorage.setItem(PRODUCT_DRAFT_KEY, JSON.stringify(draft))
+        setDraftState('saved')
+      } catch (error) {
+        console.error('Unable to save product draft:', error)
+        setDraftState('error')
+      }
+    }, 600)
+
+    setDraftState('saving')
+    return () => window.clearTimeout(timeout)
+  }, [modalOpen, editingProduct, name, slug, description, categoryId, images, isActive, isFeatured, variants])
 
   const openCreateModal = () => {
     setEditingProduct(null)
@@ -115,6 +197,31 @@ export default function AdminProductsPage() {
     setVariants([
       { label: 'Standard Pack', unit: 'KG', priceInNaira: 5000, stock: 100, minOrderQty: 1, sku: `PROD-${Date.now().toString().slice(-4)}` },
     ])
+    setDraftState('idle')
+    try {
+      const savedDraft = window.localStorage.getItem(PRODUCT_DRAFT_KEY)
+      if (savedDraft) {
+        const parsed: unknown = JSON.parse(savedDraft)
+        if (isProductFormDraft(parsed)) {
+          setName(parsed.name)
+          setSlug(parsed.slug)
+          setDescription(parsed.description)
+          setCategoryId(parsed.categoryId)
+          setImages(parsed.images)
+          setIsActive(parsed.isActive)
+          setIsFeatured(parsed.isFeatured)
+          setVariants(parsed.variants)
+          setDraftState('saved')
+        } else {
+          toast.warning('The saved product draft is invalid; a fresh draft will be started.')
+          setDraftState('error')
+        }
+      }
+    } catch (error) {
+      console.error('Unable to restore product draft:', error)
+      toast.error('The saved product draft could not be opened.')
+      setDraftState('error')
+    }
     setModalOpen(true)
   }
 
@@ -255,6 +362,14 @@ export default function AdminProductsPage() {
       }
 
       toast.success(editingProduct ? 'Product updated!' : 'Product created!')
+      if (!editingProduct) {
+        try {
+          window.localStorage.removeItem(PRODUCT_DRAFT_KEY)
+        } catch (error) {
+          console.error('Unable to clear saved product draft:', error)
+          toast.warning('The product was saved, but its local draft could not be cleared.')
+        }
+      }
       setModalOpen(false)
       fetchData()
     } catch (err: unknown) {
@@ -265,17 +380,11 @@ export default function AdminProductsPage() {
   }
 
   const handleDelete = async (p: ProductRecord) => {
-    if (!confirm(`Are you sure you want to delete "${p.name}"?`)) return
-
-    try {
-      const res = await fetch(`/api/admin/products/${p.id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to delete')
-      toast.success('Product deleted')
-      fetchData()
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error deleting product')
-    }
+    const res = await fetch(`/api/admin/products/${p.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to delete')
+    toast.success('Product deleted')
+    fetchData()
   }
 
   const handleToggleStatus = async (p: ProductRecord, field: 'isActive' | 'isFeatured') => {
@@ -294,11 +403,55 @@ export default function AdminProductsPage() {
     }
   }
 
+  const handleBulkVisibility = async (isActive: boolean) => {
+    const selected = products.filter((product) => selectedProductIds.includes(product.id))
+    if (selected.length === 0) return
+
+    setBulkUpdating(true)
+    const results = await Promise.allSettled(
+      selected.map(async (product) => {
+        const response = await fetch(`/api/admin/products/${product.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive }),
+        })
+        const data = await response.json()
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || `Unable to update ${product.name}`)
+        }
+      })
+    )
+    const failures = results.filter((result) => result.status === 'rejected').length
+    if (failures > 0) {
+      toast.error(`${failures} of ${selected.length} products could not be updated.`)
+    } else {
+      toast.success(`${selected.length} products ${isActive ? 'published' : 'hidden'}.`)
+    }
+    setSelectedProductIds([])
+    await fetchData()
+    setBulkUpdating(false)
+  }
+
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.variants.some((v) => v.sku.toLowerCase().includes(searchQuery.toLowerCase()))
   )
+  const pageSize = 10
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize))
+  const pageProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const visibleProductIds = pageProducts.map((product) => product.id)
+  const allVisibleSelected =
+    visibleProductIds.length > 0 && visibleProductIds.every((id) => selectedProductIds.includes(id))
+
+  useEffect(() => {
+    setCurrentPage(1)
+    setSelectedProductIds([])
+  }, [searchQuery])
+
+  useEffect(() => {
+    if (currentPage > pageCount) setCurrentPage(pageCount)
+  }, [currentPage, pageCount])
 
   return (
     <div className="space-y-6">
@@ -343,6 +496,32 @@ export default function AdminProductsPage() {
         )}
       </div>
 
+      {selectedProductIds.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-brand-green/20 bg-brand-green/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-slate-700" aria-live="polite">
+            {selectedProductIds.length} product{selectedProductIds.length === 1 ? '' : 's'} selected
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleBulkVisibility(true)}
+              disabled={bulkUpdating}
+              className="rounded-lg bg-brand-green px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+            >
+              Publish selected
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleBulkVisibility(false)}
+              disabled={bulkUpdating}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-50"
+            >
+              Hide selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Products Table Card */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
         {loading ? (
@@ -358,6 +537,20 @@ export default function AdminProductsPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50/70 border-b border-slate-100 uppercase tracking-wider text-[10px] font-bold text-slate-500">
                 <tr>
+                  <th className="py-3.5 px-4">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={() =>
+                        setSelectedProductIds((selected) =>
+                          allVisibleSelected
+                            ? selected.filter((id) => !visibleProductIds.includes(id))
+                            : Array.from(new Set([...selected, ...visibleProductIds]))
+                        )
+                      }
+                      aria-label="Select all products on this page"
+                    />
+                  </th>
                   <th className="py-3.5 px-6">Product</th>
                   <th className="py-3.5 px-6">Category</th>
                   <th className="py-3.5 px-6">Variants &amp; Pricing</th>
@@ -367,11 +560,25 @@ export default function AdminProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredProducts.map((p) => {
+                {pageProducts.map((p) => {
                   const lowestVariant = p.variants[0]
                   const totalStock = p.variants.reduce((acc, v) => acc + v.stock, 0)
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(p.id)}
+                          onChange={() =>
+                            setSelectedProductIds((selected) =>
+                              selected.includes(p.id)
+                                ? selected.filter((id) => id !== p.id)
+                                : [...selected, p.id]
+                            )
+                          }
+                          aria-label={`Select ${p.name}`}
+                        />
+                      </td>
                       {/* Product Thumbnail & Name */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
@@ -469,7 +676,7 @@ export default function AdminProductsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(p)}
+                            onClick={() => setProductToDelete(p)}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                             title="Delete Commodity"
                           >
@@ -485,6 +692,33 @@ export default function AdminProductsPage() {
           </div>
         )}
       </div>
+      {!loading && filteredProducts.length > 0 && (
+        <div className="flex items-center justify-between gap-4 text-xs text-slate-600">
+          <span>
+            Showing {(currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, filteredProducts.length)} of {filteredProducts.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span aria-live="polite">Page {currentPage} of {pageCount}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+              disabled={currentPage >= pageCount}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Create / Edit Product */}
       {modalOpen && (
@@ -506,6 +740,13 @@ export default function AdminProductsPage() {
                 <X size={20} />
               </button>
             </div>
+            {!editingProduct && (
+              <p aria-live="polite" className="mb-5 text-xs text-slate-500">
+                {draftState === 'saving' && 'Saving draft…'}
+                {draftState === 'saved' && 'Draft saved automatically on this device.'}
+                {draftState === 'error' && 'Draft could not be saved in this browser.'}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Product Basic Info */}
@@ -803,6 +1044,20 @@ export default function AdminProductsPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={productToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setProductToDelete(null)
+        }}
+        title="Delete product?"
+        description={
+          productToDelete
+            ? `"${productToDelete.name}" will be permanently deleted. This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete product"
+        onConfirm={() => (productToDelete ? handleDelete(productToDelete) : undefined)}
+      />
     </div>
   )
 }

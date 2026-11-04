@@ -11,8 +11,9 @@ const updateCategorySchema = z.object({
   image: z.string().nullable().optional(),
 })
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const session = await requireAdmin()
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -39,7 +40,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const updated = await prisma.category.update({
-      where: { id: params.id },
+      where: { id },
       data: dataToUpdate,
     })
 
@@ -54,8 +55,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const session = await requireAdmin()
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -63,7 +65,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     // Check if category has products
     const productCount = await prisma.product.count({
-      where: { categoryId: params.id },
+      where: { categoryId: id },
     })
 
     if (productCount > 0) {
@@ -77,10 +79,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     await prisma.category.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
-    await auditAdminAction('category.delete', params.id, {
+    await auditAdminAction('category.delete', id, {
       productCount,
     }, session.user?.email || 'admin')
 

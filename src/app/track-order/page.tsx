@@ -8,7 +8,6 @@ import { toast } from 'sonner'
 export default function TrackOrderPage() {
   const router = useRouter()
   const [reference, setReference] = useState('')
-  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,7 +33,7 @@ export default function TrackOrderPage() {
             Track Your Foodstuff Order
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Enter your order reference code (e.g. SLF-123456) to check realtime processing and dispatch status.
+            Enter your order reference code to continue. We&apos;ll verify your checkout email before showing order details.
           </p>
         </div>
 
@@ -51,19 +50,6 @@ export default function TrackOrderPage() {
                 onChange={(e) => setReference(e.target.value)}
                 placeholder="e.g. SLF-1712345678-ABC"
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-900 outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/10 uppercase"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Email Address (Optional)
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. yourname@example.com"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/10"
               />
             </div>
 

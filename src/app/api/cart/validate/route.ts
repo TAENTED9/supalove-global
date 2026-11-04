@@ -117,16 +117,15 @@ export async function POST(req: Request) {
       }
 
       const availableStock = variantData.stock
-      let confirmedQty = reqItem.qty
-
-      // Enforce minimum order quantity
       const minOrder = variantData.minOrderQty || 1
-      if (confirmedQty < minOrder) {
-        confirmedQty = minOrder
+      if (availableStock < minOrder) {
+        hasStockIssues = true
+        continue
       }
 
+      let confirmedQty = Math.max(reqItem.qty, minOrder)
       if (confirmedQty > availableStock) {
-        confirmedQty = Math.max(1, availableStock)
+        confirmedQty = availableStock
         hasStockIssues = true
       }
 

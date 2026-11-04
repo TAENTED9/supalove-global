@@ -154,7 +154,7 @@ export function Navbar() {
           </div>
           <div className="flex items-center gap-4">
             <Link
-              href="/orders"
+              href="/track-order"
               className="text-slate-300 hover:text-white flex items-center gap-1 transition-colors"
             >
               <Truck size={12} className="text-brand-orange" />
@@ -248,10 +248,10 @@ export function Navbar() {
                   </span>
                 </Link>
                 <Link
-                  href="/orders"
+                  href="/track-order"
                   className="hover:text-brand-green transition-colors py-1"
                 >
-                  Orders
+                  Track Order
                 </Link>
               </nav>
 
@@ -386,7 +386,7 @@ export function Navbar() {
                 <span className="font-bold text-brand-green">{itemCount} items</span>
               </Link>
               <Link
-                href="/orders"
+                href="/track-order"
                 onClick={() => setMobileMenuOpen(false)}
                 className="px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
               >

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import * as Dialog from '@radix-ui/react-dialog'
 import {
   ShoppingBag,
   Check,
@@ -13,15 +14,29 @@ import {
   Phone,
   Package,
   ArrowLeft,
+  X,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { useCartStore } from '@/store/cart'
 import { siteWhatsappHref } from '@/config/site'
 import { toast } from 'sonner'
 import type { ProductItem, VariantItem } from '@/lib/data'
+import { trackStoreEvent } from '@/lib/analytics'
 
 interface ProductDetailClientProps {
   product: ProductItem
+}
+
+function readWishlist() {
+  try {
+    const savedWishlist: unknown = JSON.parse(localStorage.getItem('wishlist') || '[]')
+    return Array.isArray(savedWishlist)
+      ? savedWishlist.filter((id): id is string => typeof id === 'string')
+      : []
+  } catch (error) {
+    console.error('Unable to read saved products:', error)
+    return []
+  }
 }
 
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
@@ -42,6 +57,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [added, setAdded] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -52,11 +68,33 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   // Check if product is saved in wishlist
   useEffect(() => {
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]')
+    const wishlist = readWishlist()
     setSaved(wishlist.includes(product.id))
   }, [product.id])
 
+  useEffect(() => {
+    trackStoreEvent('product_view', { productId: product.id, productSlug: product.slug })
+  }, [product.id, product.slug])
+
+  useEffect(() => {
+    if (!lightboxOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setLightboxOpen(false)
+      if (event.key === 'ArrowLeft') {
+        setSelectedImage((index) => (index + galleryImages.length - 1) % galleryImages.length)
+      }
+      if (event.key === 'ArrowRight') {
+        setSelectedImage((index) => (index + 1) % galleryImages.length)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [galleryImages.length, lightboxOpen])
+
   const handleAddToCart = () => {
+    trackStoreEvent('add_to_cart', { productId: product.id, productSlug: product.slug })
     addItem({
       productId: product.id,
       variantId: selectedVariant.id,
@@ -66,6 +104,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       price: selectedVariant.price,
       image: galleryImages[0] || undefined,
       stock: selectedVariant.stock,
+      minOrderQty: minQty,
       sku: selectedVariant.sku,
       unit: selectedVariant.unit,
     })
@@ -77,6 +116,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }
 
   const handleBuyNow = () => {
+    trackStoreEvent('add_to_cart', { productId: product.id, productSlug: product.slug })
     addItem({
       productId: product.id,
       variantId: selectedVariant.id,
@@ -86,6 +126,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       price: selectedVariant.price,
       image: galleryImages[0] || undefined,
       stock: selectedVariant.stock,
+      minOrderQty: minQty,
       sku: selectedVariant.sku,
       unit: selectedVariant.unit,
     })
@@ -94,17 +135,18 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }
 
   const handleSave = () => {
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]')
-    if (saved) {
-      const newWishlist = wishlist.filter((id: string) => id !== product.id)
-      localStorage.setItem('wishlist', JSON.stringify(newWishlist))
-      setSaved(false)
-      toast.info('Removed from wishlist')
-    } else {
-      wishlist.push(product.id)
-      localStorage.setItem('wishlist', JSON.stringify(wishlist))
-      setSaved(true)
-      toast.success('Saved to wishlist')
+    const wishlist = readWishlist()
+    const nextWishlist = saved
+      ? wishlist.filter((id) => id !== product.id)
+      : [...wishlist, product.id]
+
+    try {
+      localStorage.setItem('wishlist', JSON.stringify(nextWishlist))
+      setSaved(!saved)
+      toast.success(saved ? 'Removed from saved products' : 'Saved for later')
+    } catch (error) {
+      console.error('Unable to save product preference:', error)
+      toast.error('This product could not be saved in your browser.')
     }
   }
 
@@ -120,6 +162,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const clampedQuantity = Math.max(minQty, Math.min(quantity, selectedVariant.stock || 999))
 
   return (
+    <Dialog.Root open={lightboxOpen} onOpenChange={setLightboxOpen}>
     <div>
       {/* Back button using router.back() */}
       <button
@@ -134,7 +177,12 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         {/* Left Column (lg:col-span-3): Hero, Thumbnails, Description */}
         <div className="lg:col-span-3 space-y-4">
         {/* Square Hero */}
-        <div className="relative aspect-square w-full rounded-2xl bg-slate-100 overflow-hidden border border-slate-200/80">
+        <Dialog.Trigger asChild>
+          <button
+            type="button"
+            aria-label={`View larger image of ${product.name}`}
+            className="relative block aspect-[4/3] w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2"
+          >
           {galleryImages[selectedImage] ? (
             <Image
               src={galleryImages[selectedImage]}
@@ -149,7 +197,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <span className="text-6xl font-black text-slate-400">{product.name[0]}</span>
             </div>
           )}
-        </div>
+          </button>
+        </Dialog.Trigger>
 
         {/* 64x64 Thumbnail Strip */}
         {galleryImages.length > 1 && (
@@ -159,11 +208,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 key={idx}
                 type="button"
                 onClick={() => setSelectedImage(idx)}
+                aria-label={`Show product image ${idx + 1}`}
+                aria-pressed={selectedImage === idx}
                 className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 ${
                   selectedImage === idx
                     ? 'border-brand-green'
                     : 'border-slate-200 hover:border-slate-300'
-                }`}
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2`}
               >
                 <Image src={img} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" />
               </button>
@@ -175,13 +226,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         <div className="rounded-2xl border border-slate-200 p-5">
           <h3 className="text-sm font-bold text-slate-900 mb-2">Description</h3>
           <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
-            {product.description}
+            {product.description?.trim() || 'No product details yet.'}
           </p>
         </div>
       </div>
 
       {/* Right Column (lg:col-span-2): Buy Box */}
-      <div className="lg:col-span-2">
+      <div className="lg:sticky lg:top-24 lg:col-span-2 lg:self-start">
         <div className="rounded-2xl border border-slate-200 p-5 space-y-4">
           {/* Name */}
           <h1 className="text-xl font-black text-slate-900 leading-tight">
@@ -279,7 +330,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={selectedVariant.stock === 0}
+              disabled={selectedVariant.stock < minQty}
               className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                 added
                   ? 'bg-emerald-600 text-white'
@@ -299,7 +350,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             <button
               type="button"
               onClick={handleBuyNow}
-              disabled={selectedVariant.stock === 0}
+              disabled={selectedVariant.stock < minQty}
               className="w-full py-3 rounded-xl font-bold text-sm bg-brand-orange hover:bg-brand-orange-hover text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Buy Now
@@ -363,7 +414,43 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         </div>
       </div>
     </div>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[70] bg-slate-950/90" />
+        <Dialog.Content
+          aria-label={`${product.name} image viewer`}
+          className="fixed inset-0 z-[71] flex items-center justify-center p-4 focus:outline-none"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setLightboxOpen(false)
+          }}
+        >
+          <Dialog.Title className="sr-only">{product.name} image viewer</Dialog.Title>
+          <Dialog.Close asChild>
+            <button
+              type="button"
+              aria-label="Close image viewer"
+              className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <X size={20} />
+            </button>
+          </Dialog.Close>
+          <div className="relative h-[min(80vh,800px)] w-full max-w-5xl">
+            <Image
+              src={galleryImages[selectedImage]}
+              alt={`${product.name}, image ${selectedImage + 1}`}
+              fill
+              sizes="100vw"
+              className="object-contain"
+            />
+          </div>
+          {galleryImages.length > 1 && (
+            <p className="absolute bottom-4 text-sm text-white/80">
+              {selectedImage + 1} / {galleryImages.length} · Use arrow keys to browse
+            </p>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
   </div>
-)
-}
+      </Dialog.Root>
+    )
+  }
 export default ProductDetailClient

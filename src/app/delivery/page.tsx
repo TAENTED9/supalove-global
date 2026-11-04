@@ -1,5 +1,11 @@
 import { Truck, Globe, ShieldCheck, MapPin, Clock } from 'lucide-react'
 import { siteConfig } from '@/config/site'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Shipping & Delivery | Supalovefoods',
+  description: 'Learn about Supalovefoods delivery fees, order dispatch, and export shipping.',
+}
 
 export default function DeliveryPage() {
   return (

@@ -382,8 +382,8 @@ export async function getCategories(): Promise<CategoryItem[]> {
         image: c.image,
       }))
     }
-  } catch {
-    // Fallback if DB is not populated
+  } catch (error) {
+    console.error('Failed to load categories from the database; using fallback data.', error)
   }
   return FALLBACK_CATEGORIES
 }
@@ -433,8 +433,8 @@ export async function getFeaturedProducts(): Promise<ProductItem[]> {
         })),
       }))
     }
-  } catch {
-    // Fallback if DB is not populated
+  } catch (error) {
+    console.error('Failed to load featured products from the database; using fallback data.', error)
   }
   return ALL_PRODUCTS.filter((p) => p.isFeatured)
 }

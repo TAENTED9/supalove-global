@@ -21,6 +21,7 @@ import {
 import { useCartStore } from '@/store/cart'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 export default function CartPage() {
   const router = useRouter()
@@ -28,6 +29,7 @@ export default function CartPage() {
     useCartStore()
   const [mounted, setMounted] = useState(false)
   const [stockNotice, setStockNotice] = useState(false)
+  const [clearCartDialogOpen, setClearCartDialogOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -86,12 +88,7 @@ export default function CartPage() {
               )}
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm('Are you sure you want to remove all items from your cart?')) {
-                    clearCart()
-                    toast.info('Cart cleared')
-                  }
-                }}
+                onClick={() => setClearCartDialogOpen(true)}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-xl transition-colors border border-red-200"
               >
                 <Trash2 size={13} /> Clear Cart
@@ -212,8 +209,11 @@ export default function CartPage() {
                       <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
                         <button
                           type="button"
-                          onClick={() => updateQty(item.variantId, item.qty - 1)}
-                          className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
+                          onClick={() =>
+                            updateQty(item.variantId, Math.max(item.minOrderQty || 1, item.qty - 1))
+                          }
+                          disabled={item.qty <= (item.minOrderQty || 1)}
+                          className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="Decrease quantity"
                         >
                           <Minus size={13} />
@@ -224,13 +224,13 @@ export default function CartPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (item.stock && item.qty >= item.stock) {
+                            if (item.stock !== undefined && item.qty >= item.stock) {
                               toast.warning(`Maximum available warehouse stock reached (${item.stock})`)
                               return
                             }
                             updateQty(item.variantId, item.qty + 1)
                           }}
-                          disabled={Boolean(item.stock && item.qty >= item.stock)}
+                          disabled={item.stock !== undefined && item.qty >= item.stock}
                           className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40"
                           aria-label="Increase quantity"
                         >
@@ -348,7 +348,18 @@ export default function CartPage() {
             </div>
           </div>
         )}
+        <ConfirmDialog
+          open={clearCartDialogOpen}
+          onOpenChange={setClearCartDialogOpen}
+          title="Clear your cart?"
+          description="All items will be removed from your cart. This action cannot be undone."
+          confirmLabel="Clear cart"
+          onConfirm={() => {
+            clearCart()
+            toast.info('Cart cleared')
+          }}
+        />
+        </div>
       </div>
-    </div>
   )
 }

@@ -2,5 +2,8 @@ User-agent: *
 Disallow: /admin
 Disallow: /checkout
 Disallow: /orders
+Disallow: /cart
+Disallow: /track-order
+Disallow: /api
 
 Sitemap: https://www.supalovefoods.com/sitemap.xml

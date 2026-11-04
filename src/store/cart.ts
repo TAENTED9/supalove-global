@@ -13,6 +13,7 @@ export type CartItem = {
   price?: number // in kobo
   image?: string
   stock?: number
+  minOrderQty?: number
   sku?: string
   unit?: string
   slug?: string
@@ -46,18 +47,27 @@ export const useCartStore = create<CartState>()(
       addItem: (item) => {
         set((state) => {
           const existing = state.items.find((i) => i.variantId === item.variantId)
+          const minOrderQty = item.minOrderQty ?? existing?.minOrderQty ?? 1
+          const stock = item.stock ?? existing?.stock
+          const requestedQty = (existing?.qty ?? 0) + (item.qty ?? 1)
+          const qty = Math.min(stock ?? Number.MAX_SAFE_INTEGER, Math.max(minOrderQty, requestedQty))
           if (existing) {
             return {
               items: state.items.map((i) =>
                 i.variantId === item.variantId
-                  ? { ...i, qty: i.qty + (item.qty ?? 1) }
+                  ? {
+                      ...i,
+                      qty,
+                      ...(item.stock !== undefined && { stock: item.stock }),
+                      ...(item.minOrderQty !== undefined && { minOrderQty: item.minOrderQty }),
+                    }
                   : i
               ),
               isDrawerOpen: true,
             }
           }
           return {
-            items: [...state.items, { ...item, qty: item.qty ?? 1 }],
+            items: [...state.items, { ...item, qty }],
             isDrawerOpen: true,
           }
         })
@@ -71,7 +81,17 @@ export const useCartStore = create<CartState>()(
           items:
             qty <= 0
               ? state.items.filter((i) => i.variantId !== variantId)
-              : state.items.map((i) => (i.variantId === variantId ? { ...i, qty } : i)),
+              : state.items.map((i) =>
+                  i.variantId === variantId
+                    ? {
+                        ...i,
+                        qty: Math.min(
+                          i.stock ?? Number.MAX_SAFE_INTEGER,
+                          Math.max(i.minOrderQty || 1, qty)
+                        ),
+                      }
+                    : i
+                ),
         })),
 
       clearCart: () => set({ items: [] }),
@@ -113,6 +133,7 @@ export const useCartStore = create<CartState>()(
                 label: item.label,
                 price: item.price,
                 stock: item.stock,
+                minOrderQty: item.minOrderQty,
                 sku: item.sku,
                 unit: item.unit,
                 slug: item.slug,
@@ -144,6 +165,7 @@ export const useCartStore = create<CartState>()(
           label: i.label,
           price: i.price,
           unit: i.unit,
+          minOrderQty: i.minOrderQty,
           sku: i.sku,
           image: i.image,
           slug: i.slug,

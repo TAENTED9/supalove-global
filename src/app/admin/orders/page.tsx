@@ -39,17 +39,19 @@ export default function AdminOrdersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [exporting, setExporting] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true)
       const res = await fetch('/api/admin/orders')
       const data = await res.json()
-      if (data.success) {
-        setOrders(data.orders)
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to load orders')
       }
-    } catch {
-      toast.error('Failed to load orders')
+      setOrders(data.orders)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load orders')
     } finally {
       setLoading(false)
     }
@@ -156,10 +158,23 @@ export default function AdminOrdersPage() {
     ALL: orders.length,
     PENDING: orders.filter((o) => o.status === 'PENDING').length,
     PAID: orders.filter((o) => o.status === 'PAID').length,
+    FAILED: orders.filter((o) => o.status === 'FAILED').length,
     PROCESSING: orders.filter((o) => o.status === 'PROCESSING').length,
     DELIVERED: orders.filter((o) => o.status === 'DELIVERED').length,
     CANCELLED: orders.filter((o) => o.status === 'CANCELLED').length,
   }
+
+  const pageSize = 10
+  const pageCount = Math.max(1, Math.ceil(filteredOrders.length / pageSize))
+  const visibleOrders = filteredOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter])
+
+  useEffect(() => {
+    if (currentPage > pageCount) setCurrentPage(pageCount)
+  }, [currentPage, pageCount])
 
   return (
     <div className="space-y-6">
@@ -256,7 +271,7 @@ export default function AdminOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredOrders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6">
                       <span className="font-mono text-[11px] font-bold text-slate-800">
@@ -335,6 +350,33 @@ export default function AdminOrdersPage() {
           </div>
         )}
       </div>
+      {!loading && filteredOrders.length > 0 && (
+        <div className="flex items-center justify-between gap-4 text-xs text-slate-600">
+          <span>
+            Showing {(currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, filteredOrders.length)} of {filteredOrders.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span aria-live="polite">Page {currentPage} of {pageCount}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+              disabled={currentPage >= pageCount}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

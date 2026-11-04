@@ -1,5 +1,11 @@
 import { MapPin, Mail, Phone, MessageCircle, Clock, ShieldCheck } from 'lucide-react'
 import { siteConfig, mailHref, telHref, whatsappHref } from '@/config/site'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Contact Supalovefoods',
+  description: 'Contact Supalovefoods for foodstuff orders, delivery, wholesale, and export support.',
+}
 
 export default function ContactPage() {
   return (

@@ -10,7 +10,9 @@ const variantSchema = z.object({
   label: z.string().min(1, 'Variant label required').max(120),
   unit: z.enum(['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE']),
   price: z.number().min(0, 'Price must be positive').max(100000000),
+  compareAtPrice: z.number().min(0).max(100000000).nullable().optional(),
   stock: z.number().int().min(0, 'Stock cannot be negative').max(500000),
+  minOrderQty: z.number().int().min(1).max(500000).default(1),
   sku: z.string().min(1, 'SKU required').max(80),
 })
 
@@ -96,7 +98,9 @@ export async function POST(req: Request) {
             label: v.label,
             unit: v.unit,
             price: Math.round(v.price),
+            compareAtPrice: v.compareAtPrice ?? null,
             stock: v.stock,
+            minOrderQty: v.minOrderQty,
             sku: v.sku.trim().toUpperCase(),
           },
         })

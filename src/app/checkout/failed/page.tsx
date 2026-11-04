@@ -12,10 +12,10 @@ export default function CheckoutFailedPage() {
             <XCircle size={40} />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
-            Payment Failed
+            Payment Not Confirmed
           </h1>
           <p className="text-slate-500">
-            We couldn&apos;t process your payment. Don&apos;t worry, your card hasn&apos;t been charged.
+            We couldn&apos;t confirm your payment yet. Check your order status before trying again; a successful payment may still be processing.
           </p>
         </div>
 
@@ -25,7 +25,7 @@ export default function CheckoutFailedPage() {
           <ul className="space-y-3 text-sm text-slate-600">
             <li className="flex items-start gap-3">
               <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 font-bold text-xs">1</span>
-              <span>Your payment was declined by the bank or payment provider.</span>
+              <span>Your payment may have been declined or is still being confirmed by the payment provider.</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 font-bold text-xs">2</span>
@@ -33,7 +33,7 @@ export default function CheckoutFailedPage() {
             </li>
             <li className="flex items-start gap-3">
               <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 font-bold text-xs">3</span>
-              <span>The payment session timed out. Please try again.</span>
+              <span>The payment session timed out or the return notification was delayed.</span>
             </li>
           </ul>
         </div>
@@ -54,7 +54,7 @@ export default function CheckoutFailedPage() {
             </li>
             <li className="flex items-start gap-3">
               <RefreshCw size={16} className="text-brand-green shrink-0 mt-0.5" />
-              <span>If the problem persists, reach out to our support team.</span>
+              <span>If you were charged, please contact our support team before making another payment.</span>
             </li>
           </ul>
         </div>

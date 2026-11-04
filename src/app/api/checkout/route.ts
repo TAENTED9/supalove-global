@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { generateReference } from '@/lib/utils'
 import { checkRateLimit, getIdempotencyRecord, setIdempotencyRecord } from '@/lib/rateLimit'
-import { siteConfig } from '@/config/site'
+import { getFlutterwaveCustomizations, type FlutterwavePaymentPayload } from '@/lib/flutterwave'
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, 'Name is required').max(120),
@@ -19,7 +19,8 @@ const checkoutSchema = z.object({
       variantId: z.string().max(128),
       qty: z.number().int().min(1).max(50),
     })
-  ).min(1, 'Cart cannot be empty').max(50),
+  ).min(1, 'Cart cannot be empty').max(50)
+    .refine((items) => new Set(items.map((item) => item.variantId)).size === items.length, 'Duplicate cart items are not allowed'),
 })
 
 export async function POST(req: Request) {
@@ -55,10 +56,9 @@ export async function POST(req: Request) {
     }
 
     const flwSecretKey = process.env.FLW_SECRET_KEY
-    const flwPublicKey = process.env.FLW_PUBLIC_KEY
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    if (!flwSecretKey || !flwPublicKey) {
+    if (!flwSecretKey) {
       return NextResponse.json(
         { success: false, error: 'Payment system not configured' },
         { status: 500 }
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
         },
       })
 
-      if (!variant || !variant.product.isActive) {
+      if (!variant || !variant.product.isActive || variant.productId !== item.productId) {
         return NextResponse.json(
           { success: false, error: 'Unable to continue with checkout.' },
           { status: 400 }
@@ -110,19 +110,17 @@ export async function POST(req: Request) {
       }
 
       let unitPrice = variant.price
-      if (variant.priceTiers && variant.priceTiers.length > 0) {
-        const matchingTier = variant.priceTiers.find((t) => item.qty >= t.minQty)
+      if (variant.priceTiers.length > 0) {
+        const matchingTier = variant.priceTiers.find((tier) => item.qty >= tier.minQty)
         if (matchingTier) {
           unitPrice = matchingTier.price
         }
       }
 
-      const lineTotal = unitPrice * item.qty
-      subtotal += lineTotal
-
+      subtotal += unitPrice * item.qty
       orderItems.push({
-        productId: item.productId,
-        variantId: item.variantId,
+        productId: variant.productId,
+        variantId: variant.id,
         nameSnapshot: variant.product.name,
         labelSnapshot: variant.label,
         unitPrice,
@@ -132,12 +130,13 @@ export async function POST(req: Request) {
 
     const isLagos = state.trim().toLowerCase() === 'lagos'
     const settingKey = isLagos ? 'delivery_fee_lagos' : 'delivery_fee_other'
-    const deliveryFeeSetting = (await prisma.setting.findUnique({ where: { key: settingKey } })) || (await prisma.setting.findUnique({ where: { key: 'delivery_fee_default' } }))
+    const deliveryFeeSetting = (await prisma.setting.findUnique({ where: { key: settingKey } })) ||
+      (await prisma.setting.findUnique({ where: { key: 'delivery_fee_default' } }))
     const defaultFee = isLagos ? 150000 : 350000
     const deliveryFee = deliveryFeeSetting ? Number.parseInt(deliveryFeeSetting.value, 10) : defaultFee
     const total = subtotal + deliveryFee
-
     const txRef = generateReference()
+
     const order = await prisma.order.create({
       data: {
         reference: txRef,
@@ -151,11 +150,21 @@ export async function POST(req: Request) {
         deliveryFee,
         total,
         status: 'PENDING',
-        items: {
-          create: orderItems,
-        },
+        items: { create: orderItems },
       },
     })
+
+    const payload: FlutterwavePaymentPayload = {
+      tx_ref: txRef,
+      amount: total / 100,
+      currency: 'NGN',
+      redirect_url: new URL('/checkout/success', appUrl).toString(),
+      customer: { email, name: customerName, phonenumber: phone },
+      customizations: getFlutterwaveCustomizations(
+        `${orderItems.length} items - ₦${(total / 100).toLocaleString()}`
+      ),
+      meta: { order_id: order.id, customer_email: email },
+    }
 
     const flwResponse = await fetch('https://api.flutterwave.com/v3/payments', {
       method: 'POST',
@@ -163,35 +172,15 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${flwSecretKey}`,
       },
-      body: JSON.stringify({
-        tx_ref: txRef,
-        amount: total / 100,
-        currency: 'NGN',
-        redirect_url: `${appUrl}/checkout/success`,
-        customer: {
-          email,
-          name: customerName,
-          phonenumber: phone,
-        },
-        customizations: {
-          title: `${siteConfig.name} Order`,
-          description: `${orderItems.length} items - ₦${(total / 100).toLocaleString()}`,
-          logo: `${siteConfig.siteUrl}/logo-mark.png`,
-        },
-        meta: {
-          order_id: order.id,
-          customer_email: email,
-        },
-      }),
+      body: JSON.stringify(payload),
     })
-
     const flwData = await flwResponse.json()
 
-    if (!flwResponse.ok || flwData.status !== 'success') {
-      console.error('Flutterwave error:', flwData)
+    if (!flwResponse.ok || flwData.status !== 'success' || typeof flwData.data?.link !== 'string') {
+      console.error('Flutterwave checkout initialization failed:', flwData)
       return NextResponse.json(
         { success: false, error: 'Failed to initialize payment' },
-        { status: 500 }
+        { status: 502 }
       )
     }
 

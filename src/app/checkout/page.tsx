@@ -18,6 +18,7 @@ import {
 import { useCartStore } from '@/store/cart'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
+import { trackStoreEvent } from '@/lib/analytics'
 
 export default function CheckoutPage() {
   const { items, validateCart, subtotal, totalItems } = useCartStore()
@@ -90,6 +91,7 @@ export default function CheckoutPage() {
     }
 
     setLoading(true)
+    trackStoreEvent('checkout_started')
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',

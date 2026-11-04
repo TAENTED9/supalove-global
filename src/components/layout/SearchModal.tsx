@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, X, TrendingUp, Sparkles, ArrowRight, Clock3, LoaderCircle } from 'lucide-react'
+import { trackStoreEvent } from '@/lib/analytics'
 
 interface SearchModalProps {
   isOpen: boolean
@@ -149,6 +150,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const handleSearch = (searchTerm: string) => {
     const trimmed = searchTerm.trim()
     if (!trimmed) return
+    trackStoreEvent('search', { queryLength: Math.min(trimmed.length, 200) })
     rememberSearch(trimmed)
     onClose()
     router.push(`/products?search=${encodeURIComponent(trimmed)}`)

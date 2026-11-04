@@ -128,8 +128,11 @@ export function CartDrawer() {
                     <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => updateQty(item.variantId, item.qty - 1)}
-                        className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
+                        onClick={() =>
+                          updateQty(item.variantId, Math.max(item.minOrderQty || 1, item.qty - 1))
+                        }
+                        disabled={item.qty <= (item.minOrderQty || 1)}
+                        className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label="Decrease quantity"
                       >
                         <Minus size={12} />
@@ -140,10 +143,10 @@ export function CartDrawer() {
                       <button
                         type="button"
                         onClick={() => {
-                          if (item.stock && item.qty >= item.stock) return
+                          if (item.stock !== undefined && item.qty >= item.stock) return
                           updateQty(item.variantId, item.qty + 1)
                         }}
-                        disabled={Boolean(item.stock && item.qty >= item.stock)}
+                        disabled={item.stock !== undefined && item.qty >= item.stock}
                         className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-40"
                         aria-label="Increase quantity"
                       >

@@ -1,5 +1,11 @@
 import { RotateCcw, Mail, Phone } from 'lucide-react'
 import { siteConfig, mailHref, telHref } from '@/config/site'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Refunds & Returns | Supalovefoods',
+  description: 'Review Supalovefoods refund, returns, replacement, and delivery damage policies.',
+}
 
 export default function RefundsPage() {
   return (
