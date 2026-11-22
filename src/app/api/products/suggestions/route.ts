@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { ALL_PRODUCTS } from '@/lib/data'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -52,21 +51,11 @@ export async function GET(request: Request) {
         category: product.category.name,
       })),
     })
-  } catch {
-    const term = parsed.data.q.toLowerCase()
-    const suggestions = ALL_PRODUCTS.filter(
-      (product) =>
-        product.isActive &&
-        (product.name.toLowerCase().includes(term) || product.description.toLowerCase().includes(term))
+  } catch (error) {
+    console.error('Product suggestions could not be loaded:', error)
+    return NextResponse.json(
+      { success: false, error: 'Product suggestions are temporarily unavailable', suggestions: [] },
+      { status: 500 }
     )
-      .slice(0, 6)
-      .map((product) => ({
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        category: product.category.name,
-      }))
-
-    return NextResponse.json({ success: true, suggestions })
   }
 }

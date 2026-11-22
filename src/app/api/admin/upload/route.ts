@@ -5,6 +5,8 @@ import sharp from 'sharp'
 import { supabaseAdmin, PRODUCT_BUCKET } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/security'
 
+export const runtime = 'nodejs'
+
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 function hasValidImageMagic(buffer: Buffer) {
@@ -54,25 +56,28 @@ export async function POST(req: Request) {
 
     const filename = `product-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.webp`
 
-    try {
-      if (supabaseAdmin) {
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from(PRODUCT_BUCKET)
-          .upload(filename, optimizedBuffer, {
-            contentType: 'image/webp',
-            upsert: true,
-          })
+    if (supabaseAdmin) {
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(PRODUCT_BUCKET)
+        .upload(filename, optimizedBuffer, {
+          contentType: 'image/webp',
+          upsert: true,
+        })
 
-        if (!uploadError) {
-          const { data: urlData } = supabaseAdmin.storage
-            .from(PRODUCT_BUCKET)
-            .getPublicUrl(filename)
+      if (uploadError) throw uploadError
 
-          return NextResponse.json({ success: true, url: urlData.publicUrl })
-        }
-      }
-    } catch (supabaseErr) {
-      console.warn('Supabase storage unavailable, falling back to local storage:', supabaseErr)
+      const { data: urlData } = supabaseAdmin.storage
+        .from(PRODUCT_BUCKET)
+        .getPublicUrl(filename)
+
+      return NextResponse.json({ success: true, url: urlData.publicUrl })
+    }
+
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, error: 'Cloud image storage is not configured' },
+        { status: 503 }
+      )
     }
 
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'products')

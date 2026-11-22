@@ -38,6 +38,9 @@ export const formatPhoneIntl = (phone: string): string => {
 
 const rawPhone = getEnvVar('NEXT_PUBLIC_CONTACT_PHONE', '+2348032336789')
 const rawWhatsapp = getEnvVar('NEXT_PUBLIC_WHATSAPP', rawPhone)
+const deploymentUrl =
+  process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+const defaultSiteUrl = deploymentUrl ? `https://${deploymentUrl}` : 'http://localhost:3000'
 
 export const siteConfig: SiteConfig = {
   name: getEnvVar('NEXT_PUBLIC_SITE_NAME', 'Supalovefoods'),
@@ -47,7 +50,7 @@ export const siteConfig: SiteConfig = {
   phoneIntl: formatPhoneIntl(rawPhone),
   whatsapp: rawWhatsapp,
   address: getEnvVar('NEXT_PUBLIC_ADDRESS', getEnvVar('NEXT_PUBLIC_CONTACT_ADDRESS', 'No 1, Arobaba Street, Pipeline Road, Idimu, Lagos.')),
-  siteUrl: getEnvVar('NEXT_PUBLIC_APP_URL', 'http://localhost:3000'),
+  siteUrl: getEnvVar('NEXT_PUBLIC_APP_URL', defaultSiteUrl).replace(/\/+$/, ''),
   socials: {
     instagram: getEnvVar('NEXT_PUBLIC_SOCIAL_INSTAGRAM', getEnvVar('NEXT_PUBLIC_INSTAGRAM', '')),
     facebook: getEnvVar('NEXT_PUBLIC_SOCIAL_FACEBOOK', getEnvVar('NEXT_PUBLIC_FACEBOOK', '')),
@@ -99,4 +102,3 @@ export const whatsappHref = (messageOrPhone?: string, message?: string): string 
 export const getWhatsappHref = (): string => whatsappHref()
 export const siteWhatsappHref = (message?: string): string => whatsappHref(message)
 export const phoneIntl = formatPhoneIntl
-

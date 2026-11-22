@@ -33,10 +33,13 @@ interface FlutterwaveVerifyResponse {
   data?: FlutterwaveTransaction
 }
 
-export const getFlutterwaveCustomizations = (description?: string) => ({
+export const getFlutterwaveCustomizations = (
+  description?: string,
+  appUrl = siteConfig.siteUrl
+) => ({
   title: `${siteConfig.name} Checkout`,
   description: description || siteConfig.tagline,
-  logo: `${process.env.NEXT_PUBLIC_APP_URL || siteConfig.siteUrl}/logo-mark.png`,
+  logo: new URL('/logo-mark.png', appUrl).toString(),
 })
 
 export async function verifyFlutterwaveTransaction(transactionId: string): Promise<FlutterwaveVerifyResponse> {

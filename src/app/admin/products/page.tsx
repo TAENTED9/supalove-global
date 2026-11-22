@@ -398,8 +398,8 @@ export default function AdminProductsPage() {
     const res = await fetch(`/api/admin/products/${p.id}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to delete')
-    toast.success('Product deleted')
-    fetchData()
+    toast.success(data.archived ? 'Product archived to preserve order history' : 'Product deleted')
+    await fetchData()
   }
 
   const handleToggleStatus = async (p: ProductRecord, field: 'isActive' | 'isFeatured') => {
@@ -1091,13 +1091,13 @@ export default function AdminProductsPage() {
         onOpenChange={(open) => {
           if (!open) setProductToDelete(null)
         }}
-        title="Delete product?"
+        title="Remove product?"
         description={
           productToDelete
-            ? `"${productToDelete.name}" will be permanently deleted. This action cannot be undone.`
+            ? `"${productToDelete.name}" will be deleted unless it has existing orders, in which case it will be archived to preserve order history.`
             : ''
         }
-        confirmLabel="Delete product"
+        confirmLabel="Remove product"
         onConfirm={() => (productToDelete ? handleDelete(productToDelete) : undefined)}
       />
     </div>

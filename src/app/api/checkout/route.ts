@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { generateReference } from '@/lib/utils'
 import { checkRateLimit, getIdempotencyRecord, setIdempotencyRecord } from '@/lib/rateLimit'
 import { getFlutterwaveCustomizations, type FlutterwavePaymentPayload } from '@/lib/flutterwave'
+import { getAppUrl } from '@/lib/app-url'
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, 'Name is required').max(120),
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
     }
 
     const flwSecretKey = process.env.FLW_SECRET_KEY
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = getAppUrl(req)
 
     if (!flwSecretKey) {
       return NextResponse.json(
@@ -161,7 +162,8 @@ export async function POST(req: Request) {
       redirect_url: new URL('/checkout/success', appUrl).toString(),
       customer: { email, name: customerName, phonenumber: phone },
       customizations: getFlutterwaveCustomizations(
-        `${orderItems.length} items - ₦${(total / 100).toLocaleString()}`
+        `${orderItems.length} items - ₦${(total / 100).toLocaleString()}`,
+        appUrl
       ),
       meta: { order_id: order.id, customer_email: email },
     }

@@ -197,15 +197,36 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    await prisma.$transaction([
-      prisma.product.delete({ where: { id } }),
-      prisma.setting.deleteMany({ where: { key: productSpecsSettingKey(id) } }),
-    ])
+    const result = await prisma.$transaction(async (tx) => {
+      const orderItemCount = await tx.orderItem.count({ where: { productId: id } })
+      if (orderItemCount > 0) {
+        await tx.product.update({
+          where: { id },
+          data: { isActive: false, isFeatured: false },
+        })
+        return { archived: true, orderItemCount }
+      }
 
-    await auditAdminAction('product.delete', id, {}, session.user?.email || 'admin')
+      await tx.product.delete({ where: { id } })
+      await tx.setting.deleteMany({ where: { key: productSpecsSettingKey(id) } })
+      return { archived: false, orderItemCount: 0 }
+    })
+
+    await auditAdminAction(
+      result.archived ? 'product.archive' : 'product.delete',
+      id,
+      result.archived ? { orderItemCount: result.orderItemCount } : {},
+      session.user?.email || 'admin'
+    )
 
     revalidateTag('products')
-    return NextResponse.json({ success: true, message: 'Product deleted' })
+    return NextResponse.json({
+      success: true,
+      archived: result.archived,
+      message: result.archived
+        ? 'Product archived to preserve existing order history'
+        : 'Product deleted',
+    })
   } catch (err) {
     console.error('Delete product error:', err)
     return NextResponse.json({ success: false, error: 'Failed to delete product' }, { status: 500 })

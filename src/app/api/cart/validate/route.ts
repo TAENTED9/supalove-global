@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ALL_PRODUCTS } from '@/lib/data'
 
 const cartValidateSchema = z.object({
   items: z.array(
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
     let hasStockIssues = false
     const hasPriceChanges = false
 
-    // Attempt DB validation first
     for (const reqItem of requestedItems) {
       let variantData: {
         id: string
@@ -51,62 +49,31 @@ export async function POST(req: Request) {
         }
       } | null = null
 
-      try {
-        const found = await prisma.productVariant.findUnique({
-          where: { id: reqItem.variantId },
-          include: {
-            product: true,
-            priceTiers: {
-              orderBy: { minQty: 'desc' },
-            },
+      const found = await prisma.productVariant.findUnique({
+        where: { id: reqItem.variantId },
+        include: {
+          product: true,
+          priceTiers: {
+            orderBy: { minQty: 'desc' },
           },
-        })
-        if (found) {
-          variantData = {
-            id: found.id,
-            label: found.label,
-            price: found.price,
-            stock: found.stock,
-            minOrderQty: found.minOrderQty || 1,
-            sku: found.sku,
-            unit: found.unit,
-            priceTiers: found.priceTiers || [],
-            product: {
-              id: found.product.id,
-              name: found.product.name,
-              slug: found.product.slug,
-              images: found.product.images,
-              isActive: found.product.isActive,
-            },
-          }
-        }
-      } catch {
-        // Fallback to memory array
-      }
-
-      // Memory array fallback lookup
-      if (!variantData) {
-        for (const p of ALL_PRODUCTS) {
-          const v = p.variants.find((vr) => vr.id === reqItem.variantId || vr.sku === reqItem.variantId)
-          if (v) {
-            variantData = {
-              id: v.id,
-              label: v.label,
-              price: v.price,
-              stock: v.stock,
-              minOrderQty: v.minOrderQty || 1,
-              sku: v.sku,
-              unit: v.unit,
-              priceTiers: v.priceTiers ? [...v.priceTiers].sort((a, b) => b.minQty - a.minQty) : [],
-              product: {
-                id: p.id,
-                name: p.name,
-                slug: p.slug,
-                images: p.images,
-                isActive: p.isActive,
-              },
-            }
-            break
+        },
+      })
+      if (found) {
+        variantData = {
+          id: found.id,
+          label: found.label,
+          price: found.price,
+          stock: found.stock,
+          minOrderQty: found.minOrderQty || 1,
+          sku: found.sku,
+          unit: found.unit,
+          priceTiers: found.priceTiers || [],
+          product: {
+            id: found.product.id,
+            name: found.product.name,
+            slug: found.product.slug,
+            images: found.product.images,
+            isActive: found.product.isActive,
           }
         }
       }

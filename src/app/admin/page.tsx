@@ -11,13 +11,12 @@ import {
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/utils'
-import { ALL_PRODUCTS } from '@/lib/data'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminOverviewPage() {
-  let totalProducts = ALL_PRODUCTS.length
-  let totalCategories = 6
+  let totalProducts = 0
+  let totalCategories = 0
   let totalOrders = 0
   let totalRevenue = 0
   let pendingOrders = 0

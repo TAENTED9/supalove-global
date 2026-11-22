@@ -25,6 +25,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Database & Auth
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` - Supabase connection
+- Create a public Supabase Storage bucket named `products` for product image uploads. Production uploads require `SUPABASE_SERVICE_ROLE_KEY`; local development can fall back to `public/uploads/products`.
 - `DATABASE_URL` - Supabase transaction-pooler URL (typically port `6543`); include `pgbouncer=true` and set `connection_limit` for your deployment.
 - `DIRECT_URL` - Supabase direct PostgreSQL URL (typically port `5432`), used by Prisma for schema and migration operations.
 - `NEXTAUTH_SECRET`, `NEXTAUTH_URL` - NextAuth.js configuration
@@ -35,7 +36,7 @@ The app exports one shared Prisma client from `src/lib/prisma.ts`. Keep the pool
 - `FLW_PUBLIC_KEY`, `FLW_SECRET_KEY`, `FLW_SECRET_HASH`, `NEXT_PUBLIC_FLW_PUBLIC_KEY` - Flutterwave
 
 ### Site Configuration
-- `NEXT_PUBLIC_APP_URL` - Base URL of the site (e.g., https://supalovefoods.com)
+- `NEXT_PUBLIC_APP_URL` - Canonical base URL of the site (e.g., `https://supalovefoods.com`). If unset, request links use the current request host and Vercel deployments use Vercel's deployment URL.
 - `NEXT_PUBLIC_SITE_NAME` - Business name (default: Supalovefoods)
 - `NEXT_PUBLIC_TAGLINE` - Tagline displayed in logo (default: Export · Wholesale · Retail)
 - `NEXT_PUBLIC_CONTACT_EMAIL` - Primary contact email
