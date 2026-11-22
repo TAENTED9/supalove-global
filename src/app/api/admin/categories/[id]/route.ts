@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/audit'
 import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
+import { revalidateStorefrontCategories } from '@/lib/revalidate-storefront'
 
 const updateCategorySchema = z.object({
   name: z.string().min(2).optional(),
@@ -44,6 +45,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       data: dataToUpdate,
     })
 
+    revalidateStorefrontCategories()
     await auditAdminAction('category.update', updated.id, {
       changes: dataToUpdate,
     }, session.user?.email || 'admin')
@@ -82,6 +84,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       where: { id },
     })
 
+    revalidateStorefrontCategories()
     await auditAdminAction('category.delete', id, {
       productCount,
     }, session.user?.email || 'admin')

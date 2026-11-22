@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/audit'
 import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
 import { parseProductSpecs, productSpecsSettingKey } from '@/lib/product-specs'
+import { generateUniqueProductSku } from '@/lib/product-sku'
+import { getSettings } from '@/lib/data'
+import { revalidateStorefrontProducts } from '@/lib/revalidate-storefront'
 
 const productSpecsSchema = z.object({
   origin: z.string().max(300),
@@ -22,7 +24,6 @@ const updateVariantSchema = z.object({
   compareAtPrice: z.number().min(0).max(100000000).nullable().optional(),
   stock: z.number().int().min(0).max(500000),
   minOrderQty: z.number().int().min(1).max(500000).optional(),
-  sku: z.string().min(1).max(80),
 })
 
 const updateProductSchema = z.object({
@@ -54,14 +55,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     }
 
-    const specifications = await prisma.setting.findUnique({
-      where: { key: productSpecsSettingKey(id) },
-      select: { value: true },
-    })
+    const settings = await getSettings()
 
     return NextResponse.json({
       success: true,
-      product: { ...product, specifications: parseProductSpecs(specifications?.value) },
+      product: {
+        ...product,
+        specifications: parseProductSpecs(settings[productSpecsSettingKey(id)]),
+      },
     })
   } catch (err) {
     console.error('Get product error:', err)
@@ -142,7 +143,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 compareAtPrice: v.compareAtPrice ?? null,
                 stock: v.stock,
                 minOrderQty: v.minOrderQty ?? 1,
-                sku: v.sku.trim().toUpperCase(),
               },
             })
           } else {
@@ -155,7 +155,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 compareAtPrice: v.compareAtPrice ?? null,
                 stock: v.stock,
                 minOrderQty: v.minOrderQty ?? 1,
-                sku: v.sku.trim().toUpperCase(),
+                sku: await generateUniqueProductSku(tx),
               },
             })
           }
@@ -168,6 +168,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       })
     })
 
+    revalidateStorefrontProducts()
     await auditAdminAction('product.update', id, {
       changes: {
         name,
@@ -181,7 +182,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       },
     }, session.user?.email || 'admin')
 
-    revalidateTag('products')
     return NextResponse.json({ success: true, product: updated })
   } catch (err) {
     console.error('Update product error:', err)
@@ -212,6 +212,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return { archived: false, orderItemCount: 0 }
     })
 
+    revalidateStorefrontProducts()
     await auditAdminAction(
       result.archived ? 'product.archive' : 'product.delete',
       id,
@@ -219,7 +220,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       session.user?.email || 'admin'
     )
 
-    revalidateTag('products')
     return NextResponse.json({
       success: true,
       archived: result.archived,

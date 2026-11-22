@@ -19,13 +19,12 @@ import {
 export const revalidate = 60
 
 export default async function HomePage() {
-  const [categories, featuredProducts, newArrivals, seasonalOffers] =
-    await Promise.all([
-      getCategories(),
-      getFeaturedProducts(),
-      getNewArrivals(),
-      getSeasonalOffers(),
-    ])
+  const categories = await getCategories()
+  const [featuredProducts, newArrivals, seasonalOffers] = await Promise.all([
+    getFeaturedProducts(),
+    getNewArrivals(),
+    getSeasonalOffers(),
+  ])
 
   return (
     <div className="flex flex-col w-full">

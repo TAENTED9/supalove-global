@@ -20,6 +20,8 @@ interface ProductsPageProps {
   }>
 }
 
+export const revalidate = 60
+
 export async function generateMetadata({ searchParams }: ProductsPageProps): Promise<Metadata> {
   const params = await searchParams
   const category = params.category

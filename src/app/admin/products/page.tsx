@@ -14,6 +14,7 @@ import {
   Upload,
   RefreshCw,
   Star,
+  Copy,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -163,6 +164,7 @@ export default function AdminProductsPage() {
   const [variants, setVariants] = useState<VariantFormItem[]>([
     { label: '', unit: 'KG', priceInNaira: '', stock: '', minOrderQty: 1, sku: '' },
   ])
+  const [visibleSkuIndexes, setVisibleSkuIndexes] = useState<Set<number>>(new Set())
 
   const [uploadingImage, setUploadingImage] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -227,6 +229,7 @@ export default function AdminProductsPage() {
 
   const openCreateModal = () => {
     setEditingProduct(null)
+    setVisibleSkuIndexes(new Set())
     setName('')
     setSlug('')
     setDescription('')
@@ -267,6 +270,7 @@ export default function AdminProductsPage() {
 
   const openEditModal = (p: ProductRecord) => {
     setEditingProduct(p)
+    setVisibleSkuIndexes(new Set())
     setName(p.name)
     setSlug(p.slug)
     setDescription(p.description)
@@ -352,6 +356,16 @@ export default function AdminProductsPage() {
     )
   }
 
+  const handleCopySku = async (sku: string) => {
+    try {
+      await navigator.clipboard.writeText(sku)
+      toast.success('SKU copied')
+    } catch (error) {
+      console.error('Unable to copy product SKU:', error)
+      toast.error('Could not copy SKU. Please copy it manually.')
+    }
+  }
+
   const handlePriceChange = (
     index: number,
     field: 'priceInNaira' | 'compareAtPriceInNaira',
@@ -427,7 +441,6 @@ export default function AdminProductsPage() {
             : null,
           stock: Number(v.stock),
           minOrderQty: Number(v.minOrderQty) || 1,
-          sku: v.sku.trim().toUpperCase(),
         })),
       }
 
@@ -1078,19 +1091,47 @@ export default function AdminProductsPage() {
                       </div>
 
                       <div className="sm:col-span-2 flex items-center justify-between gap-1 pt-3 sm:pt-0">
-                        <div className="w-full">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 truncate">
-                            SKU
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={v.sku}
-                            onChange={(e) => handleVariantChange(i, 'sku', e.target.value)}
-                            placeholder="e.g. SKU-001"
-                            className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
-                          />
-                        </div>
+                        {editingProduct && v.sku ? (
+                          <div className="w-full">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 truncate">
+                              Product SKU
+                            </label>
+                            {visibleSkuIndexes.has(i) ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  readOnly
+                                  value={v.sku}
+                                  aria-label={`SKU for ${v.label}`}
+                                  className="min-w-0 w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCopySku(v.sku)}
+                                  className="shrink-0 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 hover:text-brand-green"
+                                  aria-label={`Copy SKU for ${v.label}`}
+                                  title="Copy SKU"
+                                >
+                                  <Copy size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVisibleSkuIndexes((current) => new Set(current).add(i))
+                                }
+                                className="text-xs font-semibold text-brand-green hover:underline"
+                              >
+                                Show SKU
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="w-full text-[10px] leading-5 text-slate-500">
+                            SKU will be generated automatically when saved.
+                          </p>
+                        )}
                         {variants.length > 1 && (
                           <button
                             type="button"

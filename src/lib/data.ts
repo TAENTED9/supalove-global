@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma'
+import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
+import type { Prisma } from '@prisma/client'
 import { parseProductSpecs, productSpecsSettingKey, type ProductSpecs } from '@/lib/product-specs'
+import { withRetry } from '@/lib/db-read'
 
 export interface CategoryItem {
   id: string
@@ -54,150 +57,143 @@ export interface ProductFilterParams {
   limit?: number
 }
 
-async function fetchCategories(): Promise<CategoryItem[]> {
-  try {
-    const categories = await prisma.category.findMany({
-      orderBy: { name: 'asc' },
-    })
-    return categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      image: c.image,
-    }))
-  } catch (error) {
-    console.error('Failed to load categories from the database.', error)
-    return []
+const publicProductSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  description: true,
+  categoryId: true,
+  images: true,
+  isActive: true,
+  isFeatured: true,
+  category: {
+    select: { id: true, name: true, slug: true },
+  },
+  variants: {
+    orderBy: { price: 'asc' },
+    select: {
+      id: true,
+      label: true,
+      unit: true,
+      price: true,
+      compareAtPrice: true,
+      stock: true,
+      minOrderQty: true,
+      sku: true,
+      priceTiers: {
+        orderBy: { minQty: 'asc' },
+        select: { id: true, minQty: true, price: true },
+      },
+    },
+  },
+} satisfies Prisma.ProductSelect
+
+type PublicProductRecord = Prisma.ProductGetPayload<{ select: typeof publicProductSelect }>
+
+function mapProduct(product: PublicProductRecord): ProductItem {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    description: product.description,
+    categoryId: product.categoryId,
+    category: product.category,
+    images: product.images.length > 0
+      ? product.images
+      : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
+    isActive: product.isActive,
+    isFeatured: product.isFeatured,
+    variants: product.variants.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      unit: variant.unit,
+      price: variant.price,
+      compareAtPrice: variant.compareAtPrice,
+      stock: variant.stock,
+      minOrderQty: variant.minOrderQty,
+      sku: variant.sku,
+      priceTiers: variant.priceTiers,
+    })),
   }
 }
 
-export const getCategories = unstable_cache(
-  fetchCategories,
+async function fetchCategories(): Promise<CategoryItem[]> {
+  const categories = await prisma.category.findMany({
+      select: { id: true, name: true, slug: true, image: true },
+      orderBy: { name: 'asc' },
+    })
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    image: category.image,
+  }))
+}
+
+const getCachedCategories = unstable_cache(
+  () => withRetry(fetchCategories, { retries: 2, delay: 300 }, 'categories.list'),
   ['categories'],
   { tags: ['categories'], revalidate: 60 }
 )
+export const getCategories = cache(() => getCachedCategories())
+
+async function fetchSettings(): Promise<Record<string, string>> {
+  const settings = await prisma.setting.findMany({
+    select: { key: true, value: true },
+  })
+
+  return Object.fromEntries(settings.map(({ key, value }) => [key, value]))
+}
+
+const getCachedSettings = unstable_cache(
+  () => withRetry(fetchSettings, { retries: 2, delay: 300 }, 'settings.list'),
+  ['settings'],
+  { tags: ['settings'], revalidate: 300 }
+)
+export const getSettings = cache(() => getCachedSettings())
 
 async function fetchFeaturedProducts(): Promise<ProductItem[]> {
-  try {
-    const products = await prisma.product.findMany({
+  const products = await prisma.product.findMany({
       where: {
         isActive: true,
         isFeatured: true,
         variants: { some: {} },
       },
-      include: {
-        category: true,
-        variants: {
-          orderBy: { price: 'asc' },
-          include: {
-            priceTiers: {
-              orderBy: { minQty: 'asc' },
-            },
-          },
-        },
-      },
+      select: publicProductSelect,
       take: 8,
     })
-    return products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        categoryId: p.categoryId,
-        category: p.category,
-        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
-        isActive: p.isActive,
-        isFeatured: p.isFeatured,
-        variants: p.variants.map((v) => ({
-          id: v.id,
-          label: v.label,
-          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
-          price: v.price,
-          compareAtPrice: v.compareAtPrice,
-          stock: v.stock,
-          minOrderQty: v.minOrderQty,
-          sku: v.sku,
-          priceTiers: v.priceTiers?.map((t) => ({
-            id: t.id,
-            minQty: t.minQty,
-            price: t.price,
-          })),
-        })),
-      }))
-  } catch (error) {
-    console.error('Failed to load featured products from the database.', error)
-    return []
-  }
+  return products.map(mapProduct)
 }
 
-export const getFeaturedProducts = unstable_cache(
-  fetchFeaturedProducts,
+const getCachedFeaturedProducts = unstable_cache(
+  () => withRetry(fetchFeaturedProducts, { retries: 2, delay: 300 }, 'products.featured'),
   ['featured-products'],
   { tags: ['products'], revalidate: 60 }
 )
+export const getFeaturedProducts = cache(() => getCachedFeaturedProducts())
 
 async function fetchNewArrivals(): Promise<ProductItem[]> {
-  try {
-    const products = await prisma.product.findMany({
+  const products = await prisma.product.findMany({
       where: {
         isActive: true,
         variants: { some: {} },
       },
       orderBy: { createdAt: 'desc' },
-      include: {
-        category: true,
-        variants: {
-          orderBy: { price: 'asc' },
-          include: {
-            priceTiers: {
-              orderBy: { minQty: 'asc' },
-            },
-          },
-        },
-      },
+      select: publicProductSelect,
       take: 5,
     })
-    return products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        categoryId: p.categoryId,
-        category: p.category,
-        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
-        isActive: p.isActive,
-        isFeatured: p.isFeatured,
-        variants: p.variants.map((v) => ({
-          id: v.id,
-          label: v.label,
-          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
-          price: v.price,
-          compareAtPrice: v.compareAtPrice,
-          stock: v.stock,
-          minOrderQty: v.minOrderQty,
-          sku: v.sku,
-          priceTiers: v.priceTiers?.map((t) => ({
-            id: t.id,
-            minQty: t.minQty,
-            price: t.price,
-          })),
-        })),
-      }))
-  } catch (error) {
-    console.error('Failed to load new arrivals from the database.', error)
-    return []
-  }
+  return products.map(mapProduct)
 }
 
-export const getNewArrivals = unstable_cache(
-  fetchNewArrivals,
+const getCachedNewArrivals = unstable_cache(
+  () => withRetry(fetchNewArrivals, { retries: 2, delay: 300 }, 'products.new_arrivals'),
   ['new-arrivals'],
   { tags: ['products'], revalidate: 60 }
 )
+export const getNewArrivals = cache(() => getCachedNewArrivals())
 
 async function fetchSeasonalOffers(): Promise<ProductItem[]> {
-  try {
-    const products = await prisma.product.findMany({
+  const products = await prisma.product.findMany({
       where: {
         isActive: true,
         variants: {
@@ -206,58 +202,20 @@ async function fetchSeasonalOffers(): Promise<ProductItem[]> {
           },
         },
       },
-      include: {
-        category: true,
-        variants: {
-          orderBy: { price: 'asc' },
-          include: {
-            priceTiers: {
-              orderBy: { minQty: 'asc' },
-            },
-          },
-        },
-      },
+      select: publicProductSelect,
       take: 5,
     })
-    return products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        categoryId: p.categoryId,
-        category: p.category,
-        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
-        isActive: p.isActive,
-        isFeatured: p.isFeatured,
-        variants: p.variants.map((v) => ({
-          id: v.id,
-          label: v.label,
-          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
-          price: v.price,
-          compareAtPrice: v.compareAtPrice,
-          stock: v.stock,
-          minOrderQty: v.minOrderQty,
-          sku: v.sku,
-          priceTiers: v.priceTiers?.map((t) => ({
-            id: t.id,
-            minQty: t.minQty,
-            price: t.price,
-          })),
-        })),
-      }))
-  } catch (error) {
-    console.error('Failed to load seasonal offers from the database.', error)
-    return []
-  }
+  return products.map(mapProduct)
 }
 
-export const getSeasonalOffers = unstable_cache(
-  fetchSeasonalOffers,
+const getCachedSeasonalOffers = unstable_cache(
+  () => withRetry(fetchSeasonalOffers, { retries: 2, delay: 300 }, 'products.seasonal_offers'),
   ['seasonal-offers'],
   { tags: ['products'], revalidate: 60 }
 )
+export const getSeasonalOffers = cache(() => getCachedSeasonalOffers())
 
-export async function getProducts(params: ProductFilterParams = {}): Promise<{
+async function fetchProducts(params: ProductFilterParams = {}): Promise<{
   products: ProductItem[]
   total: number
   totalPages: number
@@ -296,48 +254,13 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
       prisma.product.count({ where: whereClause }),
       prisma.product.findMany({
         where: whereClause,
-        include: {
-          category: true,
-          variants: {
-            orderBy: { price: 'asc' },
-            include: {
-              priceTiers: {
-                orderBy: { minQty: 'asc' },
-              },
-            },
-          },
-        },
+        select: publicProductSelect,
         skip: (page - 1) * limit,
         take: limit,
       }),
     ])
 
-    const mapped = products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        categoryId: p.categoryId,
-        category: p.category,
-        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
-        isActive: p.isActive,
-        isFeatured: p.isFeatured,
-        variants: p.variants.map((v) => ({
-          id: v.id,
-          label: v.label,
-          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
-          price: v.price,
-          compareAtPrice: v.compareAtPrice,
-          stock: v.stock,
-          minOrderQty: v.minOrderQty,
-          sku: v.sku,
-          priceTiers: v.priceTiers?.map((t) => ({
-            id: t.id,
-            minQty: t.minQty,
-            price: t.price,
-          })),
-        })),
-    }))
+    const mapped = products.map(mapProduct)
 
       // Apply client-side price filter if specified
     let filtered = mapped
@@ -362,137 +285,84 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
       currentPage: page,
     }
   } catch (error) {
-    console.error('Failed to load products from the database.', error)
-    return {
-      products: [],
-      total: 0,
-      totalPages: 1,
-      currentPage: page,
-    }
+    throw error
   }
 }
+
+const getCachedProducts = unstable_cache(
+  fetchProducts,
+  ['product-list'],
+  { tags: ['products'], revalidate: 60 }
+)
+export const getProducts = cache((params: ProductFilterParams = {}) =>
+  withRetry(() => getCachedProducts(params), { retries: 2, delay: 300 }, 'products.list')
+)
 
 async function fetchProductBySlug(slug: string): Promise<ProductItem | null> {
-  try {
-    const product = await prisma.product.findUnique({
+  const product = await prisma.product.findUnique({
       where: { slug, isActive: true },
-      include: {
-        category: true,
-        variants: {
-          orderBy: { price: 'asc' },
-          include: {
-            priceTiers: {
-              orderBy: { minQty: 'asc' },
-            },
-          },
-        },
-      },
+      select: publicProductSelect,
     })
 
-    if (product) {
-      if (product.variants.length === 0) return null
+  if (!product || product.variants.length === 0) return null
 
-      const specificationRecord = await prisma.setting.findUnique({
-        where: { key: productSpecsSettingKey(product.id) },
-        select: { value: true },
-      })
-
-      return {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        description: product.description,
-        categoryId: product.categoryId,
-        category: product.category,
-        images: product.images.length > 0 ? product.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
-        isActive: product.isActive,
-        isFeatured: product.isFeatured,
-        specifications: parseProductSpecs(specificationRecord?.value),
-        variants: product.variants.map((v) => ({
-          id: v.id,
-          label: v.label,
-          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
-          price: v.price,
-          compareAtPrice: v.compareAtPrice,
-          stock: v.stock,
-          minOrderQty: v.minOrderQty,
-          sku: v.sku,
-          priceTiers: v.priceTiers?.map((t) => ({
-            id: t.id,
-            minQty: t.minQty,
-            price: t.price,
-          })),
-        })),
-      }
-    }
-  } catch (error) {
-    console.error(`Failed to load product "${slug}" from the database.`, error)
-    return null
+  const settings = await getSettings()
+  return {
+    ...mapProduct(product),
+    specifications: parseProductSpecs(settings[productSpecsSettingKey(product.id)]),
   }
-  return null
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductItem | null> {
+export const getProductBySlug = cache((slug: string): Promise<ProductItem | null> => {
   const getCached = unstable_cache(
     () => fetchProductBySlug(slug),
     ['product-detail', slug],
-    { tags: ['products', `product:${slug}`], revalidate: 60 }
+    { tags: ['products', 'settings', `product:${slug}`], revalidate: 60 }
   )
-  return getCached()
-}
+  return withRetry(() => getCached(), { retries: 2, delay: 300 }, 'products.detail')
+})
 
-export async function getRelatedProducts(currentId: string, categoryId: string): Promise<ProductItem[]> {
-  try {
-    const related = await prisma.product.findMany({
+async function fetchRelatedProducts(currentId: string, categoryId: string): Promise<ProductItem[]> {
+  const related = await prisma.product.findMany({
       where: {
         categoryId,
         id: { not: currentId },
         isActive: true,
         variants: { some: {} },
       },
-      include: {
-        category: true,
-        variants: {
-          orderBy: { price: 'asc' },
-          include: {
-            priceTiers: {
-              orderBy: { minQty: 'asc' },
-            },
-          },
-        },
-      },
+      select: publicProductSelect,
       take: 4,
     })
 
-    return related.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        categoryId: p.categoryId,
-        category: p.category,
-        images: p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80'],
-        isActive: p.isActive,
-        isFeatured: p.isFeatured,
-        variants: p.variants.map((v) => ({
-          id: v.id,
-          label: v.label,
-          unit: v.unit as 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE',
-          price: v.price,
-          compareAtPrice: v.compareAtPrice,
-          stock: v.stock,
-          minOrderQty: v.minOrderQty,
-          sku: v.sku,
-          priceTiers: v.priceTiers?.map((t) => ({
-            id: t.id,
-            minQty: t.minQty,
-            price: t.price,
-          })),
-        })),
-    }))
-  } catch (error) {
-    console.error('Failed to load related products from the database.', error)
-    return []
-  }
-  return []
+  return related.map(mapProduct)
 }
+
+const getCachedRelatedProducts = unstable_cache(
+  fetchRelatedProducts,
+  ['related-products'],
+  { tags: ['products'], revalidate: 60 }
+)
+export const getRelatedProducts = cache((currentId: string, categoryId: string) =>
+  withRetry(
+    () => getCachedRelatedProducts(currentId, categoryId),
+    { retries: 2, delay: 300 },
+    'products.related'
+  )
+)
+
+async function fetchTopProductSlugs(): Promise<string[]> {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    select: { slug: true },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  })
+  return products.map(({ slug }) => slug)
+}
+
+const getCachedTopProductSlugs = unstable_cache(
+  () => withRetry(fetchTopProductSlugs, { retries: 2, delay: 300 }, 'products.static_params'),
+  ['top-product-slugs'],
+  { tags: ['products'], revalidate: 60 }
+)
+export const getTopProductSlugs = cache(() => getCachedTopProductSlugs())

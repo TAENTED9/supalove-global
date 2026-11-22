@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/audit'
 import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
+import { revalidateStorefrontCategories } from '@/lib/revalidate-storefront'
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
       },
     })
 
+    revalidateStorefrontCategories()
     await auditAdminAction('category.create', category.id, {
       name,
       slug,

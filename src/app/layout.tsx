@@ -47,6 +47,8 @@ export const metadata: Metadata = {
   },
 }
 
+export const preferredRegion = ['dub1', 'lhr1']
+
 export default function RootLayout({
   children,
 }: Readonly<{

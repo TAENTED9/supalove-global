@@ -14,11 +14,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/terms',
   ]
   const firstPage = await getProducts({ page: 1, limit: 100 })
-  const remainingPages = await Promise.all(
-    Array.from({ length: Math.max(firstPage.totalPages - 1, 0) }, (_, index) =>
-      getProducts({ page: index + 2, limit: 100 })
-    )
-  )
+  const remainingPages = []
+  for (let page = 2; page <= firstPage.totalPages; page += 1) {
+    remainingPages.push(await getProducts({ page, limit: 100 }))
+  }
   const products = [...firstPage.products, ...remainingPages.flatMap((page) => page.products)]
 
   return [

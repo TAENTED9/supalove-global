@@ -10,13 +10,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, categories: [] }, { status: 429 })
   }
 
-  try {
-    const categories = await getCategories()
-    return NextResponse.json({
-      success: true,
-      categories: categories.map(({ name, slug }) => ({ name, slug })),
-    })
-  } catch {
-    return NextResponse.json({ success: false, categories: [] }, { status: 500 })
-  }
+  const categories = await getCategories()
+  return NextResponse.json({
+    success: true,
+    categories: categories.map(({ name, slug }) => ({ name, slug })),
+  })
 }

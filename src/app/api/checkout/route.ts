@@ -5,6 +5,7 @@ import { generateReference } from '@/lib/utils'
 import { checkRateLimit, getIdempotencyRecord, setIdempotencyRecord } from '@/lib/rateLimit'
 import { getFlutterwaveCustomizations, type FlutterwavePaymentPayload } from '@/lib/flutterwave'
 import { getAppUrl } from '@/lib/app-url'
+import { getSettings } from '@/lib/data'
 
 const checkoutSchema = z.object({
   customerName: z.string().min(2, 'Name is required').max(120),
@@ -131,10 +132,10 @@ export async function POST(req: Request) {
 
     const isLagos = state.trim().toLowerCase() === 'lagos'
     const settingKey = isLagos ? 'delivery_fee_lagos' : 'delivery_fee_other'
-    const deliveryFeeSetting = (await prisma.setting.findUnique({ where: { key: settingKey } })) ||
-      (await prisma.setting.findUnique({ where: { key: 'delivery_fee_default' } }))
+    const settings = await getSettings()
+    const deliveryFeeSetting = settings[settingKey] || settings.delivery_fee_default
     const defaultFee = isLagos ? 150000 : 350000
-    const deliveryFee = deliveryFeeSetting ? Number.parseInt(deliveryFeeSetting.value, 10) : defaultFee
+    const deliveryFee = deliveryFeeSetting ? Number.parseInt(deliveryFeeSetting, 10) : defaultFee
     const total = subtotal + deliveryFee
     const txRef = generateReference()
 

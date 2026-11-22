@@ -4,7 +4,7 @@ import { CreditCard, ShieldCheck } from 'lucide-react'
 import { ProductDetailClient } from '@/components/products/ProductDetailClient'
 import { ProductCard } from '@/components/products/ProductCard'
 import { SectionHeader } from '@/components/ui/SectionHeader'
-import { getProductBySlug, getRelatedProducts, getProducts } from '@/lib/data'
+import { getProductBySlug, getRelatedProducts, getProducts, getTopProductSlugs } from '@/lib/data'
 import { siteConfig } from '@/config/site'
 
 interface ProductDetailPageProps {
@@ -14,6 +14,12 @@ interface ProductDetailPageProps {
 }
 
 export const revalidate = 60
+export const dynamicParams = true
+
+export async function generateStaticParams() {
+  const slugs = await getTopProductSlugs()
+  return slugs.map((slug) => ({ slug }))
+}
 
 export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
   const { slug } = await params

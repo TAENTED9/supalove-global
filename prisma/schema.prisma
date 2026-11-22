@@ -42,6 +42,10 @@ model Product {
   createdAt   DateTime         @default(now())
   variants    ProductVariant[]
   orderItems  OrderItem[]
+
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([categoryId])
 }
 
 model ProductVariant {

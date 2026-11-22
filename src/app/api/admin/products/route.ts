@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/audit'
 import { requireAdmin } from '@/lib/security'
 import { slugify } from '@/lib/utils'
 import { parseProductSpecs, productSpecsSettingKey } from '@/lib/product-specs'
+import { generateUniqueProductSku } from '@/lib/product-sku'
+import { revalidateStorefrontProducts } from '@/lib/revalidate-storefront'
 
 const productSpecsSchema = z.object({
   origin: z.string().max(300).default(''),
@@ -22,7 +23,6 @@ const variantSchema = z.object({
   compareAtPrice: z.number().min(0).max(100000000).nullable().optional(),
   stock: z.number().int().min(0, 'Stock cannot be negative').max(500000),
   minOrderQty: z.number().int().min(1).max(500000).default(1),
-  sku: z.string().min(1, 'SKU required').max(80),
 })
 
 const createProductSchema = z.object({
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
             compareAtPrice: v.compareAtPrice ?? null,
             stock: v.stock,
             minOrderQty: v.minOrderQty,
-            sku: v.sku.trim().toUpperCase(),
+            sku: await generateUniqueProductSku(tx),
           },
         })
       }
@@ -150,18 +150,13 @@ export async function POST(req: Request) {
       })
     })
 
+    revalidateStorefrontProducts()
     await auditAdminAction('product.create', newProduct?.id || slug, {
       slug,
       categoryId,
       variantCount: variants.length,
       specificationsUpdated: Object.values(specifications).some((value) => value.trim()),
     }, session.user?.email || 'admin')
-
-    try {
-      revalidateTag('products')
-    } catch {
-      // safe fallback in dev
-    }
 
     return NextResponse.json({ success: true, product: newProduct }, { status: 201 })
   } catch (err) {

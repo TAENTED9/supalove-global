@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/audit'
 import { requireAdmin } from '@/lib/security'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { revalidateTag } from 'next/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,6 +105,7 @@ export async function PUT(req: Request) {
       )
     )
 
+    revalidateTag('settings')
     await auditAdminAction('settings.delivery_fees_update', 'delivery-fees', parsed.data, actor)
     return NextResponse.json({ success: true, settings: parsed.data })
   } catch (error) {
