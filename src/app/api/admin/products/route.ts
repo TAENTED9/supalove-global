@@ -18,7 +18,7 @@ const variantSchema = z.object({
   id: z.string().max(128).optional(),
   label: z.string().min(1, 'Variant label required').max(120),
   unit: z.enum(['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE']),
-  price: z.number().min(0, 'Price must be positive').max(100000000),
+  price: z.number().min(1, 'Price must be positive').max(100000000),
   compareAtPrice: z.number().min(0).max(100000000).nullable().optional(),
   stock: z.number().int().min(0, 'Stock cannot be negative').max(500000),
   minOrderQty: z.number().int().min(1).max(500000).default(1),

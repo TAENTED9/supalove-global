@@ -2,24 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, X, TrendingUp, Sparkles, ArrowRight, Clock3, LoaderCircle } from 'lucide-react'
+import { Search, X, Sparkles, ArrowRight, Clock3, LoaderCircle } from 'lucide-react'
 import { trackStoreEvent } from '@/lib/analytics'
 
 interface SearchModalProps {
   isOpen: boolean
   onClose: () => void
 }
-
-const POPULAR_SEARCHES = [
-  '50kg Nigerian Rice',
-  'Ijebu Garri',
-  'Pure Red Palm Oil',
-  'Black-Eyed Beans (Oloyin)',
-  'Smoked Crayfish Calabar',
-  'Ofada Rice',
-  'Ground Tatashe Pepper',
-  'Raw Natural Honey',
-]
 
 const RECENT_SEARCHES_KEY = 'supalovefoods-recent-searches'
 
@@ -318,14 +307,14 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               </div>
             </div>
 
-            {/* Popular Searches */}
+            {recentSearches.length > 0 ? (
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                <TrendingUp size={14} className="text-brand-orange" />
-                {recentSearches.length > 0 ? 'Recent searches' : 'Popular searches'}
+                <Clock3 size={14} className="text-brand-orange" />
+                Recent searches
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {(recentSearches.length > 0 ? recentSearches : POPULAR_SEARCHES.slice(0, 6)).map((term) => (
+                {recentSearches.map((term) => (
                   <button
                     key={term}
                     type="button"
@@ -333,7 +322,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     className="group flex min-h-11 items-center justify-between rounded-lg bg-slate-50 p-2.5 text-left text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
                   >
                     <span className="flex items-center gap-2 truncate">
-                      {recentSearches.length > 0 ? <Clock3 size={13} className="text-slate-400" /> : <Search size={13} className="text-slate-400 group-hover:text-brand-green" />}
+                      <Clock3 size={13} className="text-slate-400" />
                       {term}
                     </span>
                     <ArrowRight size={12} className="text-slate-300 group-hover:text-slate-600 shrink-0" />
@@ -341,6 +330,9 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 ))}
               </div>
             </div>
+            ) : (
+              <p className="text-xs text-slate-500">Search to find products currently in the catalog.</p>
+            )}
 
             {!categories.length && <p className="text-xs text-slate-500">Browse all available products while categories load.</p>}
               </>

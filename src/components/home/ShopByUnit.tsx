@@ -9,7 +9,6 @@ const UNITS = [
     badge: 'Wholesale & Export',
     badgeColor: 'bg-brand-orange text-white',
     description: 'Direct agricultural sacks for commercial caterers, wholesalers, and export container loads.',
-    popularItems: 'Rice 50kg, Garri 25kg, Beans 50kg',
     icon: Package,
     href: '/products?unit=BAG',
     accent: 'border-brand-orange/30 hover:border-brand-orange',
@@ -21,7 +20,6 @@ const UNITS = [
     badge: 'Retail Packs',
     badgeColor: 'bg-brand-green text-white',
     description: 'Precision-measured, sorted, and cleanly packaged portions for home cooking and local distribution.',
-    popularItems: 'Ofada Rice 5kg, Honey Beans 5kg, Tatashe 1kg',
     icon: Scale,
     href: '/products?unit=KG',
     accent: 'border-brand-green/30 hover:border-brand-green',
@@ -33,7 +31,6 @@ const UNITS = [
     badge: 'Pure Oils',
     badgeColor: 'bg-amber-500 text-white',
     description: 'Cold-pressed golden groundnut oil and pure South-South unadulterated red palm oil.',
-    popularItems: 'Palm Oil 5L & 25L, Groundnut Oil 5L',
     icon: Droplet,
     href: '/products?unit=LITRE',
     accent: 'border-amber-300 hover:border-amber-500',
@@ -45,7 +42,6 @@ const UNITS = [
     badge: 'Commercial',
     badgeColor: 'bg-blue-600 text-white',
     description: 'Sturdy, moisture-sealed cartons designed for air-freight transport and diaspora grocery shelves.',
-    popularItems: 'Calabar Smoked Crayfish 1kg Carton, Spices',
     icon: Box,
     href: '/products?unit=CARTON',
     accent: 'border-blue-200 hover:border-blue-500',
@@ -89,9 +85,6 @@ export function ShopByUnit() {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-slate-200/60">
-                  <div className="text-[11px] text-slate-400 font-medium truncate mb-2">
-                    Popular: <span className="text-slate-700">{item.popularItems}</span>
-                  </div>
                   <div className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green group-hover:text-brand-green-hover transition-colors">
                     <span>Filter Products</span>
                     <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />

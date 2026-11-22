@@ -24,9 +24,9 @@ interface VariantFormItem {
   id?: string
   label: string
   unit: 'BAG' | 'KG' | 'LITRE' | 'CARTON' | 'PIECE'
-  priceInNaira: number
-  compareAtPriceInNaira?: number
-  stock: number
+  priceInNaira: number | ''
+  compareAtPriceInNaira?: number | ''
+  stock: number | ''
   minOrderQty: number
   sku: string
 }
@@ -99,9 +99,11 @@ function isProductFormDraft(value: unknown): value is ProductFormDraft {
         (item.id === undefined || typeof item.id === 'string') &&
         typeof item.label === 'string' &&
         ['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE'].includes(String(item.unit)) &&
-        typeof item.priceInNaira === 'number' &&
-        (item.compareAtPriceInNaira === undefined || typeof item.compareAtPriceInNaira === 'number') &&
-        typeof item.stock === 'number' &&
+        (typeof item.priceInNaira === 'number' || item.priceInNaira === '') &&
+        (item.compareAtPriceInNaira === undefined ||
+          typeof item.compareAtPriceInNaira === 'number' ||
+          item.compareAtPriceInNaira === '') &&
+        (typeof item.stock === 'number' || item.stock === '') &&
         typeof item.minOrderQty === 'number' &&
         typeof item.sku === 'string'
       )
@@ -132,7 +134,7 @@ export default function AdminProductsPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [specifications, setSpecifications] = useState<ProductSpecs>(EMPTY_PRODUCT_SPECS)
   const [variants, setVariants] = useState<VariantFormItem[]>([
-    { label: '50kg Bag', unit: 'BAG', priceInNaira: 52000, stock: 50, minOrderQty: 1, sku: 'RICE-50KG' },
+    { label: '', unit: 'KG', priceInNaira: '', stock: '', minOrderQty: 1, sku: '' },
   ])
 
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -206,9 +208,7 @@ export default function AdminProductsPage() {
     setIsActive(true)
     setIsFeatured(false)
     setSpecifications(EMPTY_PRODUCT_SPECS)
-    setVariants([
-      { label: 'Standard Pack', unit: 'KG', priceInNaira: 5000, stock: 100, minOrderQty: 1, sku: `PROD-${Date.now().toString().slice(-4)}` },
-    ])
+    setVariants([{ label: '', unit: 'KG', priceInNaira: '', stock: '', minOrderQty: 1, sku: '' }])
     setDraftState('idle')
     try {
       const savedDraft = window.localStorage.getItem(PRODUCT_DRAFT_KEY)
@@ -297,12 +297,12 @@ export default function AdminProductsPage() {
     setVariants((prev) => [
       ...prev,
       {
-        label: 'New Size/Unit',
+        label: '',
         unit: 'KG',
-        priceInNaira: 1000,
-        stock: 50,
+        priceInNaira: '',
+        stock: '',
         minOrderQty: 1,
-        sku: `SKU-${Date.now().toString().slice(-4)}`,
+        sku: '',
       },
     ])
   }
@@ -336,6 +336,19 @@ export default function AdminProductsPage() {
       toast.error('At least one variant size/price is required')
       return
     }
+    if (
+      variants.some(
+        (variant) =>
+          !variant.label.trim() ||
+          variant.priceInNaira === '' ||
+          variant.priceInNaira <= 0 ||
+          variant.stock === '' ||
+          !variant.sku.trim()
+      )
+    ) {
+      toast.error('Enter a label, price, stock quantity, and SKU for every variant')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -352,8 +365,10 @@ export default function AdminProductsPage() {
           id: v.id,
           label: v.label,
           unit: v.unit,
-          price: Math.round(v.priceInNaira * 100), // convert to kobo
-          compareAtPrice: v.compareAtPriceInNaira ? Math.round(v.compareAtPriceInNaira * 100) : null,
+          price: Math.round(Number(v.priceInNaira) * 100), // convert to kobo
+          compareAtPrice: v.compareAtPriceInNaira
+            ? Math.round(Number(v.compareAtPriceInNaira) * 100)
+            : null,
           stock: Number(v.stock),
           minOrderQty: Number(v.minOrderQty) || 1,
           sku: v.sku.trim().toUpperCase(),
@@ -775,7 +790,7 @@ export default function AdminProductsPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Premium Nigerian Rice"
+                    placeholder="Enter product name"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:border-brand-green"
                   />
                 </div>
@@ -923,7 +938,7 @@ export default function AdminProductsPage() {
                           required
                           value={v.label}
                           onChange={(e) => handleVariantChange(i, 'label', e.target.value)}
-                          placeholder="e.g. 50kg Bag"
+                          placeholder="Enter size or pack"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
@@ -952,10 +967,16 @@ export default function AdminProductsPage() {
                         <input
                           type="number"
                           required
-                          min="0"
+                          min="0.01"
                           value={v.priceInNaira}
-                          onChange={(e) => handleVariantChange(i, 'priceInNaira', parseFloat(e.target.value) || 0)}
-                          placeholder="52000"
+                          onChange={(e) =>
+                            handleVariantChange(
+                              i,
+                              'priceInNaira',
+                              e.target.value ? parseFloat(e.target.value) : ''
+                            )
+                          }
+                          placeholder="Enter price"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-brand-green"
                         />
                       </div>
@@ -968,8 +989,14 @@ export default function AdminProductsPage() {
                           type="number"
                           min="0"
                           value={v.compareAtPriceInNaira || ''}
-                          onChange={(e) => handleVariantChange(i, 'compareAtPriceInNaira', e.target.value ? parseFloat(e.target.value) : undefined)}
-                          placeholder="60000"
+                          onChange={(e) =>
+                            handleVariantChange(
+                              i,
+                              'compareAtPriceInNaira',
+                              e.target.value ? parseFloat(e.target.value) : ''
+                            )
+                          }
+                          placeholder="Optional"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
@@ -983,8 +1010,10 @@ export default function AdminProductsPage() {
                           required
                           min="0"
                           value={v.stock}
-                          onChange={(e) => handleVariantChange(i, 'stock', parseInt(e.target.value, 10) || 0)}
-                          placeholder="50"
+                          onChange={(e) =>
+                            handleVariantChange(i, 'stock', e.target.value ? parseInt(e.target.value, 10) : '')
+                          }
+                          placeholder="Enter stock"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
@@ -1014,7 +1043,7 @@ export default function AdminProductsPage() {
                             required
                             value={v.sku}
                             onChange={(e) => handleVariantChange(i, 'sku', e.target.value)}
-                            placeholder="RICE-50KG"
+                            placeholder="e.g. SKU-001"
                             className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-mono"
                           />
                         </div>

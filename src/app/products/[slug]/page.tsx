@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: ProductDetailPageProps): Prom
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { slug } = await params
   const product = await getProductBySlug(slug)
-  if (!product) {
+  if (!product || product.variants.length === 0) {
     notFound()
   }
 

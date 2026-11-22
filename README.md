@@ -12,6 +12,8 @@ npx prisma db seed
 npm run dev
 ```
 
+The seed command creates the admin account, delivery-fee setting, and categories only. Add all catalog products through the admin dashboard.
+
 Open [http://localhost:3000](http://localhost:3000).
 
 ## Tech Stack

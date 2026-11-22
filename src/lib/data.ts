@@ -80,7 +80,11 @@ export const getCategories = unstable_cache(
 async function fetchFeaturedProducts(): Promise<ProductItem[]> {
   try {
     const products = await prisma.product.findMany({
-      where: { isActive: true, isFeatured: true },
+      where: {
+        isActive: true,
+        isFeatured: true,
+        variants: { some: {} },
+      },
       include: {
         category: true,
         variants: {
@@ -135,7 +139,10 @@ export const getFeaturedProducts = unstable_cache(
 async function fetchNewArrivals(): Promise<ProductItem[]> {
   try {
     const products = await prisma.product.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        variants: { some: {} },
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         category: true,
@@ -262,6 +269,7 @@ export async function getProducts(params: ProductFilterParams = {}): Promise<{
     // Build Prisma query where clause
     const whereClause: Record<string, unknown> = {
       isActive: true,
+      variants: { some: {} },
     }
 
     if (category) {
@@ -382,6 +390,8 @@ async function fetchProductBySlug(slug: string): Promise<ProductItem | null> {
     })
 
     if (product) {
+      if (product.variants.length === 0) return null
+
       const specificationRecord = await prisma.setting.findUnique({
         where: { key: productSpecsSettingKey(product.id) },
         select: { value: true },
@@ -438,6 +448,7 @@ export async function getRelatedProducts(currentId: string, categoryId: string):
         categoryId,
         id: { not: currentId },
         isActive: true,
+        variants: { some: {} },
       },
       include: {
         category: true,
