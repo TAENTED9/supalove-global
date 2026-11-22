@@ -57,16 +57,48 @@ export async function POST(req: Request) {
     const filename = `product-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.webp`
 
     if (supabaseAdmin) {
-      const { error: uploadError } = await supabaseAdmin.storage
+      const storage = supabaseAdmin.storage
+      let { error: uploadError } = await storage
         .from(PRODUCT_BUCKET)
         .upload(filename, optimizedBuffer, {
           contentType: 'image/webp',
           upsert: true,
         })
 
+      if (uploadError?.statusCode === '404') {
+        const { error: createError } = await storage.createBucket(PRODUCT_BUCKET, {
+          public: true,
+          fileSizeLimit: '5MB',
+          allowedMimeTypes: ['image/webp'],
+        })
+
+        const bucketAlreadyExists =
+          createError?.statusCode === '409' ||
+          createError?.message.toLowerCase().includes('already exists')
+
+        if (createError && !bucketAlreadyExists) {
+          console.error('Product image storage bucket could not be created:', createError)
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Supabase Storage bucket "${PRODUCT_BUCKET}" is missing and could not be created. Create it as a public bucket or grant bucket-management permission to the service role.`,
+            },
+            { status: 503 }
+          )
+        }
+
+        const retry = await storage
+          .from(PRODUCT_BUCKET)
+          .upload(filename, optimizedBuffer, {
+            contentType: 'image/webp',
+            upsert: true,
+          })
+        uploadError = retry.error
+      }
+
       if (uploadError) throw uploadError
 
-      const { data: urlData } = supabaseAdmin.storage
+      const { data: urlData } = storage
         .from(PRODUCT_BUCKET)
         .getPublicUrl(filename)
 

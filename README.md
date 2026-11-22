@@ -27,7 +27,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Database & Auth
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` - Supabase connection
-- Create a public Supabase Storage bucket named `products` for product image uploads. Production uploads require `SUPABASE_SERVICE_ROLE_KEY`; local development can fall back to `public/uploads/products`.
+- Product images use the public Supabase Storage bucket named `products`. If missing, the upload route creates it on first upload; `SUPABASE_SERVICE_ROLE_KEY` must have permission to create buckets. Otherwise, create a public `products` bucket in Supabase Storage manually. Local development can fall back to `public/uploads/products`.
 - `DATABASE_URL` - Supabase transaction-pooler URL (typically port `6543`); include `pgbouncer=true` and set `connection_limit` for your deployment.
 - `DIRECT_URL` - Supabase direct PostgreSQL URL (typically port `5432`), used by Prisma for schema and migration operations.
 - `NEXTAUTH_SECRET`, `NEXTAUTH_URL` - NextAuth.js configuration

@@ -73,6 +73,34 @@ interface ProductFormDraft {
 
 const PRODUCT_DRAFT_KEY = 'supalovefoods-admin-product-draft'
 
+function getPriceInputValue(value: number | string | null | undefined): string {
+  if (value === '' || value === null || value === undefined) return ''
+
+  const cleaned = String(value).replace(/[^\d.]/g, '')
+  const decimalIndex = cleaned.indexOf('.')
+  if (decimalIndex === -1) return cleaned
+
+  const whole = cleaned.slice(0, decimalIndex)
+  const fraction = cleaned.slice(decimalIndex + 1).replace(/\./g, '').slice(0, 2)
+  return `${whole}.${fraction}`
+}
+
+function formatPriceInput(value: number | string | null | undefined): string {
+  const raw = getPriceInputValue(value)
+  if (!raw) return ''
+
+  const [whole, fraction] = raw.split('.')
+  const groupedWhole = (whole || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return raw.includes('.') ? `${groupedWhole}.${fraction}` : groupedWhole
+}
+
+function isPriceDraftValue(value: unknown): value is number | string {
+  return (
+    (typeof value === 'number' && Number.isFinite(value)) ||
+    (typeof value === 'string' && /^\d*(\.\d{0,2})?$/.test(value))
+  )
+}
+
 function isProductFormDraft(value: unknown): value is ProductFormDraft {
   if (!value || typeof value !== 'object') return false
   const draft = value as Record<string, unknown>
@@ -99,10 +127,9 @@ function isProductFormDraft(value: unknown): value is ProductFormDraft {
         (item.id === undefined || typeof item.id === 'string') &&
         typeof item.label === 'string' &&
         ['BAG', 'KG', 'LITRE', 'CARTON', 'PIECE'].includes(String(item.unit)) &&
-        (typeof item.priceInNaira === 'number' || item.priceInNaira === '') &&
+        isPriceDraftValue(item.priceInNaira) &&
         (item.compareAtPriceInNaira === undefined ||
-          typeof item.compareAtPriceInNaira === 'number' ||
-          item.compareAtPriceInNaira === '') &&
+          isPriceDraftValue(item.compareAtPriceInNaira)) &&
         (typeof item.stock === 'number' || item.stock === '') &&
         typeof item.minOrderQty === 'number' &&
         typeof item.sku === 'string'
@@ -325,6 +352,34 @@ export default function AdminProductsPage() {
     )
   }
 
+  const handlePriceChange = (
+    index: number,
+    field: 'priceInNaira' | 'compareAtPriceInNaira',
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = event.currentTarget
+    const caret = input.selectionStart ?? input.value.length
+    const charactersBeforeCaret = input.value.slice(0, caret).replace(/,/g, '').length
+    const rawValue = getPriceInputValue(input.value)
+    const formattedValue = formatPriceInput(rawValue)
+
+    setVariants((prev) =>
+      prev.map((variant, variantIndex) =>
+        variantIndex === index ? { ...variant, [field]: rawValue } : variant
+      )
+    )
+
+    window.requestAnimationFrame(() => {
+      let nextCaret = 0
+      let countedCharacters = 0
+      while (nextCaret < formattedValue.length && countedCharacters < charactersBeforeCaret) {
+        if (/[0-9.]/.test(formattedValue[nextCaret])) countedCharacters += 1
+        nextCaret += 1
+      }
+      input.setSelectionRange(nextCaret, nextCaret)
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || !description.trim() || !categoryId) {
@@ -341,7 +396,8 @@ export default function AdminProductsPage() {
         (variant) =>
           !variant.label.trim() ||
           variant.priceInNaira === '' ||
-          variant.priceInNaira <= 0 ||
+          !Number.isFinite(Number(variant.priceInNaira)) ||
+          Number(variant.priceInNaira) <= 0 ||
           variant.stock === '' ||
           !variant.sku.trim()
       )
@@ -365,9 +421,9 @@ export default function AdminProductsPage() {
           id: v.id,
           label: v.label,
           unit: v.unit,
-          price: Math.round(Number(v.priceInNaira) * 100), // convert to kobo
-          compareAtPrice: v.compareAtPriceInNaira
-            ? Math.round(Number(v.compareAtPriceInNaira) * 100)
+          price: Math.round(Number(getPriceInputValue(v.priceInNaira)) * 100), // convert to kobo
+          compareAtPrice: v.compareAtPriceInNaira !== '' && v.compareAtPriceInNaira !== undefined
+            ? Math.round(Number(getPriceInputValue(v.compareAtPriceInNaira)) * 100)
             : null,
           stock: Number(v.stock),
           minOrderQty: Number(v.minOrderQty) || 1,
@@ -965,17 +1021,11 @@ export default function AdminProductsPage() {
                           Price (₦)
                         </label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           required
-                          min="0.01"
-                          value={v.priceInNaira}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              i,
-                              'priceInNaira',
-                              e.target.value ? parseFloat(e.target.value) : ''
-                            )
-                          }
+                          value={formatPriceInput(v.priceInNaira)}
+                          onChange={(event) => handlePriceChange(i, 'priceInNaira', event)}
                           placeholder="Enter price"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-brand-green"
                         />
@@ -986,16 +1036,10 @@ export default function AdminProductsPage() {
                           Sale Price (₦)
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          value={v.compareAtPriceInNaira || ''}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              i,
-                              'compareAtPriceInNaira',
-                              e.target.value ? parseFloat(e.target.value) : ''
-                            )
-                          }
+                          type="text"
+                          inputMode="decimal"
+                          value={formatPriceInput(v.compareAtPriceInNaira)}
+                          onChange={(event) => handlePriceChange(i, 'compareAtPriceInNaira', event)}
                           placeholder="Optional"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                         />
